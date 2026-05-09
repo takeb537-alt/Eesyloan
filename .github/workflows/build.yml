@@ -27,68 +27,430 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Create assets folder
-        run: mkdir -p assets/images
+      - name: Create full project structure
+        run: |
+          mkdir -p assets/images
+          mkdir -p lib/providers
+          mkdir -p lib/screens
+          mkdir -p lib/widgets
+          mkdir -p lib/utils
+
+      - name: Write pubspec.yaml
+        run: |
+          cat > pubspec.yaml << 'PUBEOF'
+          name: easyloan
+          description: EasyLoan App
+          publish_to: 'none'
+          version: 1.0.0+1
+          environment:
+            sdk: '>=3.0.0 <4.0.0'
+          dependencies:
+            flutter:
+              sdk: flutter
+            flutter_localizations:
+              sdk: flutter
+            cupertino_icons: ^1.0.8
+            provider: ^6.1.2
+            shared_preferences: ^2.2.3
+            intl: ^0.19.0
+            pdf: ^3.10.8
+            path_provider: ^2.1.3
+            open_file: ^3.3.2
+            image_picker: ^1.1.2
+            permission_handler: ^11.3.1
+          dev_dependencies:
+            flutter_test:
+              sdk: flutter
+            flutter_lints: ^4.0.0
+          flutter:
+            uses-material-design: true
+            assets:
+              - assets/images/
+          PUBEOF
+
+      - name: Write app_provider.dart
+        run: |
+          cat > lib/providers/app_provider.dart << 'DARTEOF'
+          import 'dart:convert';
+          import 'dart:io';
+          import 'package:flutter/material.dart';
+          import 'package:shared_preferences/shared_preferences.dart';
+          import 'package:path_provider/path_provider.dart';
+
+          class UserModel {
+            final String fullName, mobile, pan, dob, upiId,
+                address, city, state, pincode, faceImagePath;
+            final List<String> allImages;
+            UserModel({required this.fullName, required this.mobile,
+              required this.pan, required this.dob, required this.upiId,
+              required this.address, required this.city, required this.state,
+              required this.pincode, required this.faceImagePath,
+              required this.allImages});
+            Map<String, dynamic> toJson() => {'fullName': fullName,
+              'mobile': mobile, 'pan': pan, 'dob': dob, 'upiId': upiId,
+              'address': address, 'city': city, 'state': state,
+              'pincode': pincode, 'faceImagePath': faceImagePath,
+              'allImages': allImages};
+            factory UserModel.fromJson(Map<String, dynamic> j) => UserModel(
+              fullName: j['fullName'] ?? '', mobile: j['mobile'] ?? '',
+              pan: j['pan'] ?? '', dob: j['dob'] ?? '', upiId: j['upiId'] ?? '',
+              address: j['address'] ?? '', city: j['city'] ?? '',
+              state: j['state'] ?? '', pincode: j['pincode'] ?? '',
+              faceImagePath: j['faceImagePath'] ?? '',
+              allImages: List<String>.from(j['allImages'] ?? []));
+          }
+
+          enum LoanStatus { active, completed, overdue, blacklisted }
+
+          class LoanModel {
+            final String id, userId;
+            final double amount, fee;
+            double penalty, amountPaid;
+            LoanStatus status;
+            final DateTime appliedDate, dueDate;
+            String? pdfPath;
+            bool autopayActive;
+            LoanModel({required this.id, required this.userId,
+              required this.amount, required this.fee,
+              required this.appliedDate, required this.dueDate,
+              required this.status, this.penalty = 0, this.amountPaid = 0,
+              this.pdfPath, this.autopayActive = true});
+            double get totalDue => amount + fee + penalty - amountPaid;
+            double get principalDue => amount + fee + penalty;
+            double calculatePenalty() {
+              if (status == LoanStatus.completed) return 0;
+              final days = DateTime.now().difference(dueDate).inDays;
+              if (days <= 0) return 0;
+              final base = amount * 0.1;
+              if (days <= 5) return 0;
+              if (days <= 10) return base * 0.25;
+              if (days <= 15) return base * 0.50;
+              if (days <= 20) return base * 0.75;
+              if (days <= 25) return base * 1.0;
+              if (days <= 30) return base * 2.0;
+              return base * 3.0;
+            }
+            Map<String, dynamic> toJson() => {'id': id, 'userId': userId,
+              'amount': amount, 'fee': fee, 'penalty': penalty,
+              'amountPaid': amountPaid, 'status': status.name,
+              'appliedDate': appliedDate.toIso8601String(),
+              'dueDate': dueDate.toIso8601String(),
+              'pdfPath': pdfPath, 'autopayActive': autopayActive};
+            factory LoanModel.fromJson(Map<String, dynamic> j) => LoanModel(
+              id: j['id'], userId: j['userId'],
+              amount: (j['amount'] as num).toDouble(),
+              fee: (j['fee'] as num).toDouble(),
+              penalty: (j['penalty'] as num).toDouble(),
+              amountPaid: (j['amountPaid'] as num).toDouble(),
+              status: LoanStatus.values.byName(j['status']),
+              appliedDate: DateTime.parse(j['appliedDate']),
+              dueDate: DateTime.parse(j['dueDate']),
+              pdfPath: j['pdfPath'], autopayActive: j['autopayActive'] ?? true);
+          }
+
+          class PenaltyCalc {
+            static double calculate(double amount) {
+              if (amount <= 100) return 50;
+              if (amount <= 500) return 100;
+              if (amount <= 1000) return 200;
+              if (amount <= 1500) return 250;
+              return 300;
+            }
+            static List<Map<String, String>> get schedule => [
+              {'range': 'Rs 100', 'penalty': 'Rs 50'},
+              {'range': 'Rs 200-500', 'penalty': 'Rs 100'},
+              {'range': 'Rs 600-1000', 'penalty': 'Rs 200'},
+              {'range': 'Rs 1100-1500', 'penalty': 'Rs 250'},
+              {'range': 'Rs 1600-2000', 'penalty': 'Rs 300'},
+            ];
+          }
+
+          class AppProvider extends ChangeNotifier {
+            static const _kUser = 'current_user';
+            static const _kOnboarded = 'onboarded';
+            static const _kOnTime = 'onTimeCount';
+            static const _kDark = 'darkMode';
+            static const _kLang = 'language';
+            static const _kLoggedIn = 'loggedIn';
+            static const _kPermsDone = 'permsDone';
+            UserModel? _user;
+            List<LoanModel> _loans = [];
+            bool _onboarded = false;
+            int _onTimePayments = 0;
+            bool _isDark = false;
+            String _language = 'en';
+            bool _loggedIn = false;
+            bool _permsDone = false;
+            String _profilePhoto = '';
+            UserModel? get user => _user;
+            List<LoanModel> get loans => List.unmodifiable(_loans);
+            bool get onboarded => _onboarded;
+            int get onTimePayments => _onTimePayments;
+            bool get isDark => _isDark;
+            String get language => _language;
+            bool get loggedIn => _loggedIn;
+            bool get permsDone => _permsDone;
+            bool get isRegistered => _user != null;
+            String get profilePhoto => _profilePhoto;
+            LoanModel? get activeLoan {
+              try {
+                return _loans.firstWhere((l) =>
+                  l.status == LoanStatus.active ||
+                  l.status == LoanStatus.overdue);
+              } catch (_) { return null; }
+            }
+            double get maxUnlockedAmount {
+              if (_onTimePayments >= 6) return 2000;
+              if (_onTimePayments >= 3) return 1000;
+              return 200;
+            }
+            bool get isBlacklisted =>
+              _loans.any((l) => l.status == LoanStatus.blacklisted);
+            Future<void> init() async {
+              final p = await SharedPreferences.getInstance();
+              _onboarded = p.getBool(_kOnboarded) ?? false;
+              _onTimePayments = p.getInt(_kOnTime) ?? 0;
+              _isDark = p.getBool(_kDark) ?? false;
+              _language = p.getString(_kLang) ?? 'en';
+              _loggedIn = p.getBool(_kLoggedIn) ?? false;
+              _permsDone = p.getBool(_kPermsDone) ?? false;
+              _profilePhoto = p.getString('profilePhoto') ?? '';
+              final u = p.getString(_kUser);
+              if (u != null) _user = UserModel.fromJson(jsonDecode(u));
+              await _loadLoans();
+              _checkOverdue();
+              notifyListeners();
+            }
+            Future<void> _loadLoans() async {
+              try {
+                final dir = await getApplicationDocumentsDirectory();
+                final file = File('${dir.path}/loans.json');
+                if (await file.exists()) {
+                  final list = jsonDecode(await file.readAsString()) as List;
+                  _loans = list.map((e) => LoanModel.fromJson(e)).toList();
+                }
+              } catch (_) {}
+            }
+            Future<void> _saveLoans() async {
+              try {
+                final dir = await getApplicationDocumentsDirectory();
+                final file = File('${dir.path}/loans.json');
+                await file.writeAsString(
+                  jsonEncode(_loans.map((l) => l.toJson()).toList()));
+              } catch (_) {}
+            }
+            void _checkOverdue() {
+              final now = DateTime.now();
+              for (final loan in _loans) {
+                if (loan.status == LoanStatus.active && now.isAfter(loan.dueDate)) {
+                  final days = now.difference(loan.dueDate).inDays;
+                  loan.status = days > 30
+                    ? LoanStatus.blacklisted : LoanStatus.overdue;
+                  if (loan.status == LoanStatus.overdue) {
+                    loan.penalty = loan.calculatePenalty();
+                  }
+                }
+              }
+            }
+            Future<void> completeOnboarding() async {
+              _onboarded = true;
+              final p = await SharedPreferences.getInstance();
+              await p.setBool(_kOnboarded, true);
+              notifyListeners();
+            }
+            Future<void> setPermsDone() async {
+              _permsDone = true;
+              final p = await SharedPreferences.getInstance();
+              await p.setBool(_kPermsDone, true);
+              notifyListeners();
+            }
+            Future<void> setLoggedIn(bool val) async {
+              _loggedIn = val;
+              final p = await SharedPreferences.getInstance();
+              await p.setBool(_kLoggedIn, val);
+              notifyListeners();
+            }
+            Future<String?> register(UserModel user) async {
+              final existing = await _findUserByMobile(user.mobile);
+              if (existing != null) return 'mobile_exists';
+              final panExists = await _checkPanExists(user.pan);
+              if (panExists) return 'pan_exists';
+              _user = user;
+              final p = await SharedPreferences.getInstance();
+              await p.setString(_kUser, jsonEncode(user.toJson()));
+              await _saveUserToFile(user);
+              await setLoggedIn(true);
+              notifyListeners();
+              return null;
+            }
+            Future<UserModel?> _findUserByMobile(String mobile) async {
+              try {
+                final dir = await getApplicationDocumentsDirectory();
+                final file = File('${dir.path}/users.json');
+                if (!await file.exists()) return null;
+                final list = jsonDecode(await file.readAsString()) as List;
+                final found = list.where((u) => u['mobile'] == mobile).toList();
+                return found.isEmpty ? null : UserModel.fromJson(found.first);
+              } catch (_) { return null; }
+            }
+            Future<bool> _checkPanExists(String pan) async {
+              try {
+                final dir = await getApplicationDocumentsDirectory();
+                final file = File('${dir.path}/users.json');
+                if (!await file.exists()) return false;
+                final list = jsonDecode(await file.readAsString()) as List;
+                return list.any((u) => u['pan'] == pan.toUpperCase());
+              } catch (_) { return false; }
+            }
+            Future<void> _saveUserToFile(UserModel user) async {
+              try {
+                final dir = await getApplicationDocumentsDirectory();
+                final file = File('${dir.path}/users.json');
+                List users = [];
+                if (await file.exists()) {
+                  users = jsonDecode(await file.readAsString()) as List;
+                }
+                users.removeWhere((u) => u['mobile'] == user.mobile);
+                users.add(user.toJson());
+                await file.writeAsString(jsonEncode(users));
+              } catch (_) {}
+            }
+            Future<bool> loginWithMobile(String mobile) async {
+              final user = await _findUserByMobile(mobile);
+              if (user == null) return false;
+              _user = user;
+              final p = await SharedPreferences.getInstance();
+              await p.setString(_kUser, jsonEncode(user.toJson()));
+              await setLoggedIn(true);
+              notifyListeners();
+              return true;
+            }
+            Future<String?> applyLoan(double amount) async {
+              if (activeLoan != null) return 'active_loan_exists';
+              if (isBlacklisted) return 'blacklisted';
+              final now = DateTime.now();
+              final loan = LoanModel(
+                id: 'EL${now.millisecondsSinceEpoch.toString().substring(5)}',
+                userId: _user?.mobile ?? '', amount: amount, fee: 100,
+                appliedDate: now,
+                dueDate: now.add(const Duration(days: 15)),
+                status: LoanStatus.active, autopayActive: true);
+              _loans.add(loan);
+              await _saveLoans();
+              notifyListeners();
+              return loan.id;
+            }
+            Future<void> updateLoanPdf(String loanId, String path) async {
+              final i = _loans.indexWhere((l) => l.id == loanId);
+              if (i >= 0) {
+                _loans[i].pdfPath = path;
+                await _saveLoans();
+                notifyListeners();
+              }
+            }
+            Future<bool> makePayment(String loanId, double payAmount) async {
+              final i = _loans.indexWhere((l) => l.id == loanId);
+              if (i < 0) return false;
+              final loan = _loans[i];
+              if (loan.status == LoanStatus.overdue) {
+                loan.penalty = loan.calculatePenalty();
+              }
+              loan.amountPaid += payAmount;
+              if (loan.amountPaid >= loan.principalDue) {
+                loan.status = LoanStatus.completed;
+                loan.autopayActive = false;
+                if (DateTime.now().isBefore(loan.dueDate)) _onTimePayments++;
+                final p = await SharedPreferences.getInstance();
+                await p.setInt(_kOnTime, _onTimePayments);
+              }
+              await _saveLoans();
+              notifyListeners();
+              return loan.status == LoanStatus.completed;
+            }
+            Future<void> toggleDark() async {
+              _isDark = !_isDark;
+              final p = await SharedPreferences.getInstance();
+              await p.setBool(_kDark, _isDark);
+              notifyListeners();
+            }
+            Future<void> setLanguage(String lang) async {
+              _language = lang;
+              final p = await SharedPreferences.getInstance();
+              await p.setString(_kLang, lang);
+              notifyListeners();
+            }
+            Future<void> setProfilePhoto(String path) async {
+              _profilePhoto = path;
+              final p = await SharedPreferences.getInstance();
+              await p.setString('profilePhoto', path);
+              notifyListeners();
+            }
+            Future<void> logout() async {
+              _loggedIn = false; _user = null;
+              final p = await SharedPreferences.getInstance();
+              await p.setBool(_kLoggedIn, false);
+              await p.remove(_kUser);
+              notifyListeners();
+            }
+            Future<void> deleteAccount() async {
+              try {
+                final dir = await getApplicationDocumentsDirectory();
+                final f = File('${dir.path}/users.json');
+                if (await f.exists()) {
+                  List users = jsonDecode(await f.readAsString()) as List;
+                  users.removeWhere((u) => u['mobile'] == _user?.mobile);
+                  await f.writeAsString(jsonEncode(users));
+                }
+                _loans.removeWhere((l) => l.userId == _user?.mobile);
+                await _saveLoans();
+              } catch (_) {}
+              final p = await SharedPreferences.getInstance();
+              await p.clear();
+              _user = null; _loggedIn = false;
+              _onTimePayments = 0; _loans = [];
+              notifyListeners();
+            }
+          }
+          DARTEOF
 
       - name: Recreate Android folder
         run: |
           rm -rf android
           flutter create --platforms android -t app /tmp/easyloan_tmp
           cp -r /tmp/easyloan_tmp/android ./android
-          sed -i 's/com.example.easyloan/com.easyloan.app/g' android/app/build.gradle
-          sed -i 's/com.example.easyloan/com.easyloan.app/g' android/app/src/main/AndroidManifest.xml
-          sed -i 's/com.example.easyloan/com.easyloan.app/g' android/app/src/main/kotlin/com/example/easyloan/MainActivity.kt || true
+          sed -i 's/com.example.easyloan/com.easyloan.app/g' \
+            android/app/build.gradle \
+            android/app/src/main/AndroidManifest.xml || true
+          find android -name "MainActivity.kt" -exec \
+            sed -i 's/com.example.easyloan/com.easyloan.app/g' {} \; || true
 
-      - name: Add permissions to AndroidManifest
+      - name: Add AndroidManifest permissions
         run: |
-          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
+          cat > android/app/src/main/AndroidManifest.xml << 'XMLEOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.CAMERA"/>
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-              <uses-permission android:name="android.permission.READ_CONTACTS"/>
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.VIBRATE"/>
-              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-              <uses-feature android:name="android.hardware.camera" android:required="false"/>
-              <application
-                  android:label="EasyLoan"
-                  android:name="${applicationName}"
-                  android:icon="@mipmap/ic_launcher"
-                  android:requestLegacyExternalStorage="true"
-                  android:hardwareAccelerated="true">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:launchMode="singleTop"
-                      android:theme="@style/LaunchTheme"
-                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-                      android:hardwareAccelerated="true"
-                      android:windowSoftInputMode="adjustResize">
-                      <meta-data android:name="io.flutter.embedding.android.NormalTheme"
-                          android:resource="@style/NormalTheme"/>
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-                  <meta-data android:name="flutterEmbedding" android:value="2"/>
-              </application>
-          </manifest>
-          EOF
-
-      - name: Get packages
-        run: flutter pub get
-
-      - name: Build APK
-        run: flutter build apk --release --no-shrink
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: EasyLoan-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
-          if-no-files-found: error
+            <uses-permission android:name="android.permission.CAMERA"/>
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+            <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+            <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+            <uses-permission android:name="android.permission.READ_CONTACTS"/>
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <uses-permission android:name="android.permission.VIBRATE"/>
+            <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+            <uses-feature android:name="android.hardware.camera" android:required="false"/>
+            <application
+              android:label="EasyLoan"
+              android:name="${applicationName}"
+              android:icon="@mipmap/ic_launcher"
+              android:requestLegacyExternalStorage="true"
+              android:hardwareAccelerated="true">
+              <activity
+                android:name=".MainActivity"
+                android:exported="true"
+                android:launchMode="singleTop"
+                android:theme="@style/LaunchTheme"
+                android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                android:hardwareAccelerated="true"
+                android:windowSoftInputMode="adjustResize">
+                <meta-data android:name="io.flutter.embedding.android.NormalTheme"
+              
