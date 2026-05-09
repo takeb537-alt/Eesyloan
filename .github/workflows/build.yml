@@ -5,13 +5,16 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Java 17
@@ -20,40 +23,50 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Flutter
+      - name: Setup Flutter 3.22.0
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.0'
           channel: 'stable'
           cache: true
 
-      - name: Create required asset folders
+      - name: Create asset folders
         run: |
           mkdir -p assets/images
           mkdir -p assets/animations
           mkdir -p assets/fonts
-          touch assets/images/.gitkeep
-          touch assets/animations/.gitkeep
+          # Placeholder files so Flutter doesn't error on empty folders
+          echo "" > assets/images/.keep
+          echo "" > assets/animations/.keep
 
-      - name: Create dummy fonts (if not present)
+      - name: Download Poppins fonts
         run: |
-          # Download Google Fonts Poppins to avoid missing font error
-          cd assets/fonts
-          curl -L "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Regular.ttf" -o Poppins-Regular.ttf
-          curl -L "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Medium.ttf" -o Poppins-Medium.ttf
-          curl -L "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-SemiBold.ttf" -o Poppins-SemiBold.ttf
-          curl -L "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf" -o Poppins-Bold.ttf
+          BASE="https://github.com/google/fonts/raw/main/ofl/poppins"
+          curl -fsSL "$BASE/Poppins-Regular.ttf"  -o assets/fonts/Poppins-Regular.ttf
+          curl -fsSL "$BASE/Poppins-Medium.ttf"   -o assets/fonts/Poppins-Medium.ttf
+          curl -fsSL "$BASE/Poppins-SemiBold.ttf" -o assets/fonts/Poppins-SemiBold.ttf
+          curl -fsSL "$BASE/Poppins-Bold.ttf"     -o assets/fonts/Poppins-Bold.ttf
+          echo "✅ Fonts downloaded:"
+          ls -lh assets/fonts/
 
-      - name: Get Flutter dependencies
+      - name: Flutter pub get
         run: flutter pub get
 
-      - name: Build APK (debug - faster, no signing needed)
-        run: flutter build apk --debug
+      - name: Flutter doctor (for debug info)
+        run: flutter doctor -v
 
-      - name: Upload APK artifact
+      - name: Build debug APK
+        run: flutter build apk --debug --verbose
+
+      - name: Show APK output
+        run: |
+          echo "=== APK files ==="
+          find build/app/outputs -name "*.apk" -exec ls -lh {} \;
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: easyloan-debug-apk
+          name: EasyLoan-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 30
           if-no-files-found: error
