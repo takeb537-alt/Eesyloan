@@ -10,42 +10,79 @@ jobs:
   build:
     name: Build EasyLoan Release APK
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Set up Java 17
+      - name: Setup Java 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Set up Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.22.0
           channel: stable
           cache: true
 
-      - name: Recreate Android folder with correct Gradle format
+      - name: Create assets folder
+        run: mkdir -p assets/images
+
+      - name: Recreate Android folder
         run: |
           rm -rf android
           flutter create --platforms android -t app /tmp/easyloan_tmp
           cp -r /tmp/easyloan_tmp/android ./android
-          echo "✅ Android folder recreated"
-          ls android/
+          sed -i 's/com.example.easyloan/com.easyloan.app/g' android/app/build.gradle
+          sed -i 's/com.example.easyloan/com.easyloan.app/g' android/app/src/main/AndroidManifest.xml
+          sed -i 's/com.example.easyloan/com.easyloan.app/g' android/app/src/main/kotlin/com/example/easyloan/MainActivity.kt || true
 
-      - name: Copy our pubspec and lib into project
+      - name: Add permissions to AndroidManifest
         run: |
-          echo "✅ lib/ and pubspec.yaml already in repo root"
-          ls lib/
-          cat pubspec.yaml
+          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.CAMERA"/>
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+              <uses-permission android:name="android.permission.READ_CONTACTS"/>
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.VIBRATE"/>
+              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+              <uses-feature android:name="android.hardware.camera" android:required="false"/>
+              <application
+                  android:label="EasyLoan"
+                  android:name="${applicationName}"
+                  android:icon="@mipmap/ic_launcher"
+                  android:requestLegacyExternalStorage="true"
+                  android:hardwareAccelerated="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTop"
+                      android:theme="@style/LaunchTheme"
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <meta-data android:name="io.flutter.embedding.android.NormalTheme"
+                          android:resource="@style/NormalTheme"/>
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+                  <meta-data android:name="flutterEmbedding" android:value="2"/>
+              </application>
+          </manifest>
+          EOF
 
-      - name: Get Flutter packages
+      - name: Get packages
         run: flutter pub get
 
-      - name: Build Release APK
+      - name: Build APK
         run: flutter build apk --release --no-shrink
 
       - name: Upload APK
