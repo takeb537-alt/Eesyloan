@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../providers/loan_provider.dart';
+import '../providers/app_provider.dart';
 import '../widgets/swipe_to_pay.dart';
 import 'home_screen.dart';
 
@@ -18,10 +18,15 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
   bool _showPartial = false, _paying = false;
   String? _partialErr;
 
-  LoanModel get _loan => context.read<LoanProvider>().loans
-      .firstWhere((l) => l.id == widget.loan.id, orElse: () => widget.loan);
+  LoanModel get _loan {
+    try {
+      return context.read<AppProvider>().loans
+          .firstWhere((l) => l.id == widget.loan.id);
+    } catch (_) { return widget.loan; }
+  }
+
   bool get _overdue => _loan.status == LoanStatus.overdue;
-  double get _penalty => _overdue ? PenaltyCalculator.calculate(_loan.amount) : 0;
+  double get _penalty => _overdue ? PenaltyCalc.calculate(_loan.amount) : 0;
   double get _due => _loan.amount + _loan.fee + _penalty - _loan.amountPaid;
 
   @override
@@ -31,7 +36,8 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
     setState(() => _paying = true);
     HapticFeedback.heavyImpact();
     await Future.delayed(const Duration(milliseconds: 600));
-    final done = await context.read<LoanProvider>().makePayment(_loan.id, _due);
+    final done = await context.read<AppProvider>()
+        .makePayment(_loan.id, _due);
     if (mounted) _showSuccess(done, _due);
     setState(() => _paying = false);
   }
@@ -46,7 +52,8 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
     }
     setState(() { _partialErr = null; _paying = true; });
     HapticFeedback.mediumImpact();
-    final done = await context.read<LoanProvider>().makePayment(_loan.id, amt);
+    final done = await context.read<AppProvider>()
+        .makePayment(_loan.id, amt);
     if (mounted) _showSuccess(done, amt);
     setState(() => _paying = false);
   }
@@ -63,8 +70,13 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
           Text(done ? 'Loan Closed! 🎉' : 'Payment Received',
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text('₹${amt.toStringAsFixed(0)} paid successfully',
+          Text('₹${amt.toStringAsFixed(0)} paid successfully.',
             style: const TextStyle(color: Colors.grey)),
+          if (done) const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text('AutoPay mandate has been deactivated.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.green, fontSize: 12))),
         ]),
         actions: [TextButton(
           onPressed: () {
@@ -75,7 +87,7 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
             else Navigator.pop(context);
           },
           child: const Text('OK', style: TextStyle(
-              color: Color(0xFF1565C0), fontWeight: FontWeight.bold)))],
+            color: Color(0xFF1565C0), fontWeight: FontWeight.bold)))],
       ));
   }
 
@@ -100,7 +112,7 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
               Expanded(child: Text(
                 'OVERDUE! Penalty ₹${_penalty.toInt()} added.',
                 style: const TextStyle(color: Colors.red,
-                    fontWeight: FontWeight.bold))),
+                  fontWeight: FontWeight.bold))),
             ])),
           Container(
             width: double.infinity, padding: const EdgeInsets.all(24),
@@ -112,7 +124,7 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
               borderRadius: BorderRadius.circular(20)),
             child: Column(children: [
               const Text('Total Due', style: TextStyle(
-                  color: Colors.white70, fontSize: 14)),
+                color: Colors.white70, fontSize: 14)),
               const SizedBox(height: 8),
               Text('₹${_due.toStringAsFixed(0)}', style: const TextStyle(
                 color: Colors.white, fontSize: 44,
@@ -122,7 +134,7 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
                 children: [
                   _chip('Due', DateFormat('dd MMM').format(loan.dueDate)),
                   _chip(_overdue ? 'Late' : 'Left',
-                      '${_overdue ? days.abs() : days}d'),
+                    '${_overdue ? days.abs() : days}d'),
                   _chip('ID', loan.id),
                 ]),
             ])),
@@ -131,12 +143,38 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
           _row('Fee', '₹${loan.fee.toInt()}'),
           if (_overdue) _row('Penalty', '₹${_penalty.toInt()}', red: true),
           if (loan.amountPaid > 0) _row('Paid',
-              '-₹${loan.amountPaid.toStringAsFixed(0)}', green: true),
+            '-₹${loan.amountPaid.toStringAsFixed(0)}', green: true),
           const Divider(height: 24),
           _row('Total Due', '₹${_due.toStringAsFixed(0)}', bold: true),
-          const SizedBox(height: 28),
+          const SizedBox(height: 16),
+          // AutoPay info
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: const Color(0xFFFFEBEE),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade200)),
+            child: Row(children: [
+              const Icon(Icons.lock, color: Colors.red, size: 18),
+              const SizedBox(width: 8),
+              const Expanded(child: Text(
+                'AutoPay is ACTIVE. Cannot be cancelled until full repayment.',
+                style: TextStyle(color: Colors.red, fontSize: 12))),
+              TextButton(
+                onPressed: () => showDialog(context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Cannot Cancel AutoPay'),
+                    content: const Text(
+                      'Loan is pending. Full payment required to cancel AutoPay.'),
+                    actions: [TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('OK'))],
+                  )),
+                child: const Text('Cancel?',
+                  style: TextStyle(color: Colors.red, fontSize: 12))),
+            ])),
+          const SizedBox(height: 24),
           const Text('Full Payment', style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.bold)),
+            fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           _paying ? const Center(child: CircularProgressIndicator())
             : SwipeToPayWidget(amount: _due, onPaymentComplete: _payFull),
@@ -145,23 +183,23 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
             onTap: () => setState(() => _showPartial = !_showPartial),
             child: Row(children: [
               const Text('Partial Payment', style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold)),
+                fontSize: 16, fontWeight: FontWeight.bold)),
               Icon(_showPartial ? Icons.expand_less : Icons.expand_more,
-                  color: const Color(0xFF1565C0)),
+                color: const Color(0xFF1565C0)),
             ])),
           if (_showPartial) ...[
             const SizedBox(height: 12),
             TextField(controller: _partialCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                labelText: 'Amount (min ₹10)',
-                prefixText: '₹ ', errorText: _partialErr,
+                labelText: 'Amount (min ₹10)', prefixText: '₹ ',
+                errorText: _partialErr,
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(
-                      color: Color(0xFF1565C0), width: 2)))),
+                    color: Color(0xFF1565C0), width: 2)))),
             const SizedBox(height: 12),
             SizedBox(width: double.infinity,
               child: ElevatedButton.icon(
@@ -181,18 +219,18 @@ class _RepaymentScreenState extends State<RepaymentScreen> {
   Widget _chip(String l, String v) => Column(children: [
     Text(l, style: const TextStyle(color: Colors.white70, fontSize: 11)),
     Text(v, style: const TextStyle(color: Colors.white,
-        fontWeight: FontWeight.bold, fontSize: 12)),
+      fontWeight: FontWeight.bold, fontSize: 12)),
   ]);
 
   Widget _row(String l, String v,
-      {bool bold=false, bool red=false, bool green=false}) =>
+      {bool bold = false, bool red = false, bool green = false}) =>
     Padding(padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Text(l, style: TextStyle(color: Colors.grey[700],
-            fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
+          fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
         Text(v, style: TextStyle(fontWeight: bold
-            ? FontWeight.bold : FontWeight.w500,
+          ? FontWeight.bold : FontWeight.w500,
           color: red ? Colors.red : green ? Colors.green
-              : bold ? const Color(0xFF1565C0) : Colors.black87)),
+            : bold ? const Color(0xFF1565C0) : Colors.black87)),
       ]));
 }
