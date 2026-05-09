@@ -1,72 +1,43 @@
-name: EasyLoan APK Build
+name: Build EasyLoan APK
 
 on:
   push:
-    branches: [main, master]
+    branches:
+      - main
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
-  build-apk:
+  build:
+    name: Build EasyLoan Release APK
     runs-on: ubuntu-latest
-    timeout-minutes: 60
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: 17
 
-      - name: Setup Flutter 3.22.0
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
-          channel: 'stable'
+          flutter-version: 3.22.0
+          channel: stable
           cache: true
 
-      - name: Create asset folders
-        run: |
-          mkdir -p assets/images
-          mkdir -p assets/animations
-          mkdir -p assets/fonts
-          # Placeholder files so Flutter doesn't error on empty folders
-          echo "" > assets/images/.keep
-          echo "" > assets/animations/.keep
-
-      - name: Download Poppins fonts
-        run: |
-          BASE="https://github.com/google/fonts/raw/main/ofl/poppins"
-          curl -fsSL "$BASE/Poppins-Regular.ttf"  -o assets/fonts/Poppins-Regular.ttf
-          curl -fsSL "$BASE/Poppins-Medium.ttf"   -o assets/fonts/Poppins-Medium.ttf
-          curl -fsSL "$BASE/Poppins-SemiBold.ttf" -o assets/fonts/Poppins-SemiBold.ttf
-          curl -fsSL "$BASE/Poppins-Bold.ttf"     -o assets/fonts/Poppins-Bold.ttf
-          echo "✅ Fonts downloaded:"
-          ls -lh assets/fonts/
-
-      - name: Flutter pub get
+      - name: Get Flutter packages
         run: flutter pub get
 
-      - name: Flutter doctor (for debug info)
-        run: flutter doctor -v
-
-      - name: Build debug APK
-        run: flutter build apk --debug --verbose
-
-      - name: Show APK output
-        run: |
-          echo "=== APK files ==="
-          find build/app/outputs -name "*.apk" -exec ls -lh {} \;
+      - name: Build Release APK
+        run: flutter build apk --release --no-shrink
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: EasyLoan-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: EasyLoan-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
           if-no-files-found: error
