@@ -28,6 +28,20 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Recreate Android folder with correct Gradle format
+        run: |
+          rm -rf android
+          flutter create --platforms android -t app /tmp/easyloan_tmp
+          cp -r /tmp/easyloan_tmp/android ./android
+          echo "✅ Android folder recreated"
+          ls android/
+
+      - name: Copy our pubspec and lib into project
+        run: |
+          echo "✅ lib/ and pubspec.yaml already in repo root"
+          ls lib/
+          cat pubspec.yaml
+
       - name: Get Flutter packages
         run: flutter pub get
 
