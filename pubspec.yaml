@@ -28,13 +28,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-  # ✅ Assets folder declared (folders must exist)
   assets:
     - assets/images/
     - assets/animations/
-
-  # ✅ Fonts - files will be downloaded by CI
   fonts:
     - family: Poppins
       fonts:
