@@ -8,11 +8,9 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Provider se data fetch karna
     final p = context.watch<LoanProvider>();
-    final u = p.user;
+    final u = p.user; 
     
-    // Statistics calculate karna
     final total = p.loans.length;
     final done = p.loans.where((l) => l.status.toString().contains('completed')).length;
 
@@ -27,15 +25,12 @@ class ProfileScreen extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // Profile Header Section
             Container(
               width: 88,
               height: 88,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-                ),
+                gradient: LinearGradient(colors: [Colors.blue, Colors.blueAccent]),
               ),
               child: Center(
                 child: Text(
@@ -45,19 +40,16 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            // FIX: fullName ki jagah u.name use kiya
             Text(
               u.name, 
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-            // FIX: mobile ki jagah u.phone use kiya
             Text(
               u.phone.isNotEmpty ? '+91 ${u.phone}' : 'No Phone Number',
               style: const TextStyle(color: Colors.grey, fontSize: 16),
             ),
             const SizedBox(height: 24),
 
-            // Personal Details Card
             _card('Personal Details', Icons.person_outline, [
               ['Name', u.name],
               ['Email', u.email.isNotEmpty ? u.email : '-'],
@@ -66,18 +58,15 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Loan Statistics Card
             _card('Loan Statistics', Icons.bar_chart, [
               ['Total Loans', '$total'],
               ['Completed', '$done'],
-              // Humara naye variable wala trick
               ['On-Time Payments', '${p.onTimePayments}'],
               ['Max Credit', '₹${p.maxUnlockedAmount.toInt()}'],
             ]),
 
             const SizedBox(height: 24),
 
-            // Logout / Reset Button (Outlined style as per your image)
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -91,14 +80,12 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  // Common Card Widget
   Widget _card(String title, IconData icon, List<List<String>> items) {
     return Card(
       elevation: 0,
@@ -109,7 +96,6 @@ class ProfileScreen extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -135,30 +121,10 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // Reset Dialog
   void _showResetDialog(BuildContext context, LoanProvider p) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Reset Account?'),
-        content: const Text('Ye karne se aapka saara data delete ho jayega. Kya aap sure hain?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () async {
-              await p.logout();
-              if (context.mounted) {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SplashScreen()),
-                  (route) => false,
-                );
-              }
-            },
-            child: const Text('Reset', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-}
+        content: const Text('Kya aap sure hain? Saara data delete ho jayega
+        
