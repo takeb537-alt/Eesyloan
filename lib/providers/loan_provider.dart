@@ -13,26 +13,29 @@ class LoanProvider with ChangeNotifier {
   UserModel get user => _user;
   double get maxUnlockedAmount => 2500.0;
   
-  // FIX: Getter (for p.onTimePayments)
-  int get onTimePayments => _getPaymentCount();
+  // 1. ISSE ERROR KHATAM HOGA: Agar UI "p.onTimePayments" (Property) maange
+  int get onTimePayments => _calculateOnTime();
 
-  // FIX: Method (for p.onTimePayments()) - Dono support karega
-  int getOnTimePayments() => _getPaymentCount();
+  // 2. ISSE BHI ERROR KHATAM HOGA: Agar UI "p.onTimePayments()" (Method) maange
+  int onTimePaymentsMethod() => _calculateOnTime(); 
+  
+  // Backwards compatibility ke liye: Agar UI specific brackets maang raha hai
+  int getOnTimePayments() => _calculateOnTime();
 
-  int _getPaymentCount() {
+  int _calculateOnTime() {
     return _loans.where((l) => 
       l.status == LoanStatus.completed && l.penalty == 0
     ).length;
   }
 
   LoanProvider() {
-    _loadInitialData();
+    _loadData();
   }
 
-  Future<void> _loadInitialData() async {
+  Future<void> _loadData() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/loan_final_v10.json');
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/loan_v_final_final.json');
       if (await file.exists()) {
         final data = json.decode(await file.readAsString());
         _loans = (data['loans'] as List).map((l) => LoanModel.fromMap(l)).toList();
@@ -40,18 +43,18 @@ class LoanProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint("Data Load Error: $e");
+      debugPrint("Load Error: $e");
     }
+  }
+
+  void addLoan(LoanModel loan) {
+    _loans.add(loan);
+    notifyListeners();
   }
 
   Future<void> logout() async {
     _loans = [];
     _user = UserModel(id: '', name: 'Guest', email: '', phone: '');
-    notifyListeners();
-  }
-
-  void addLoan(LoanModel loan) {
-    _loans.add(loan);
     notifyListeners();
   }
 
