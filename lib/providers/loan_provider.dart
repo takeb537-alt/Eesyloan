@@ -7,10 +7,7 @@ import '../models/user_model.dart';
 
 class LoanProvider with ChangeNotifier {
   List<LoanModel> _loans = [];
-  UserModel _user = UserModel(id: '1', name: 'Itel User', email: '', phone: '');
-
-  // TRICK: Ye variable hona zaroori hai build pass hone ke liye
-  int onTimePayments = 0; 
+  UserModel _user = UserModel(id: '1', name: 'Smart User', email: '', phone: '');
 
   List<LoanModel> get loans => _loans;
   UserModel get user => _user;
@@ -20,22 +17,15 @@ class LoanProvider with ChangeNotifier {
     _loadData();
   }
 
-  void _calculateStats() {
-    onTimePayments = _loans.where((l) => 
-      l.status == LoanStatus.completed && l.penalty == 0
-    ).length;
-    notifyListeners();
-  }
-
   Future<void> _loadData() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/loan_data_fixed.json');
+      final file = File('${dir.path}/loan_data_final.json');
       if (await file.exists()) {
         final data = json.decode(await file.readAsString());
         _loans = (data['loans'] as List).map((l) => LoanModel.fromMap(l)).toList();
         if (data['user'] != null) _user = UserModel.fromMap(data['user']);
-        _calculateStats();
+        notifyListeners();
       }
     } catch (e) {
       debugPrint("Load Error: $e");
@@ -44,23 +34,12 @@ class LoanProvider with ChangeNotifier {
 
   void addLoan(LoanModel loan) {
     _loans.add(loan);
-    _calculateStats();
-  }
-
-  LoanModel? getActiveLoan() {
-    try {
-      return _loans.firstWhere((l) => 
-        l.status == LoanStatus.active || l.status == LoanStatus.overdue
-      );
-    } catch (e) {
-      return null;
-    }
+    notifyListeners();
   }
 
   Future<void> logout() async {
     _loans = [];
     _user = UserModel(id: '', name: 'Guest', email: '', phone: '');
-    onTimePayments = 0;
     notifyListeners();
   }
 }
