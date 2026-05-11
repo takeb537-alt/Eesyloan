@@ -13,48 +13,52 @@ class LoanProvider with ChangeNotifier {
   UserModel get user => _user;
   double get maxUnlockedAmount => 2500.0;
   
-  // RASTA 1: Agar UI "provider.onTimePayments" maange
-  int get onTimePayments => _logic();
+  // 1. Getter: Agar UI me "provider.onTimePayments" likha ho
+  int get onTimePayments => _countOnTime();
 
-  // RASTA 2: Agar UI "provider.onTimePayments()" maange (Brackets ke saath)
-  int onTimePaymentsMethod() => _logic();
-  
-  // RASTA 3: Explicit Function (Just in case)
-  int getOnTimePayments() => _logic();
-
-  // Actual Logic function
-  int _logic() {
-    return _loans.where((l) => l.status == LoanStatus.completed && l.penalty == 0).length;
+  // 2. Method: Agar UI me "provider.onTimePayments()" likha ho
+  // Aapke screenshots ke hisaab se yahi line error fix karegi
+  int onTimePayments() {
+    return _countOnTime();
   }
 
-  // Compiler ko forced handle dene ke liye
-  @override
-  dynamic noSuchMethod(Invocation invocation) {
-    if (invocation.memberName == #onTimePayments) {
-      return _logic();
-    }
-    return super.noSuchMethod(invocation);
+  int _countOnTime() {
+    return _loans.where((l) => 
+      l.status == LoanStatus.completed && l.penalty == 0
+    ).length;
   }
 
-  LoanProvider() { _load(); }
+  LoanProvider() {
+    _loadData();
+  }
 
-  Future<void> _load() async {
+  Future<void> _loadData() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/final_fix.json');
+      final file = File('${dir.path}/loan_data_fixed.json');
       if (await file.exists()) {
         final data = json.decode(await file.readAsString());
         _loans = (data['loans'] as List).map((l) => LoanModel.fromMap(l)).toList();
         if (data['user'] != null) _user = UserModel.fromMap(data['user']);
         notifyListeners();
       }
-    } catch (e) { debugPrint(e.toString()); }
+    } catch (e) {
+      debugPrint("Load Error: $e");
+    }
   }
 
-  void addLoan(LoanModel loan) { _loans.add(loan); notifyListeners(); }
-  Future<void> logout() async { _loans = []; _user = UserModel(id: '', name: 'Guest', email: '', phone: ''); notifyListeners(); }
+  void addLoan(LoanModel loan) {
+    _loans.add(loan);
+    notifyListeners();
+  }
+
   LoanModel? getActiveLoan() {
-    try { return _loans.firstWhere((l) => l.status == LoanStatus.active || l.status == LoanStatus.overdue); }
-    catch (e) { return null; }
+    try {
+      return _loans.firstWhere((l) => 
+        l.status == LoanStatus.active || l.status == LoanStatus.overdue
+      );
+    } catch (e) {
+      return null;
+    }
   }
 }
