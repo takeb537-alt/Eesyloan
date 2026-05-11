@@ -57,22 +57,13 @@ class LoanModel {
     );
   }
 
-  LoanModel copyWith({
-    LoanStatus? status,
-    int? penalty,
-    int? paidAmount,
-  }) {
+  LoanModel copyWith({LoanStatus? status, int? penalty, int? paidAmount}) {
     return LoanModel(
-      id: id,
-      userId: userId,
-      amount: amount,
-      returnAmount: returnAmount,
-      dueDate: dueDate,
+      id: id, userId: userId, amount: amount, returnAmount: returnAmount,
+      dueDate: dueDate, createdAt: createdAt, agreementPdfPath: agreementPdfPath,
       status: status ?? this.status,
       penalty: penalty ?? this.penalty,
       paidAmount: paidAmount ?? this.paidAmount,
-      agreementPdfPath: agreementPdfPath,
-      createdAt: createdAt,
     );
   }
 }
