@@ -1,5 +1,5 @@
 class PenaltyCalculator {
-  // Static List: Iska use screens mein table banane ke liye ho raha hai
+  // Static List: Iska naam 'schedule' hi rakhna kyunki screen me yahi use hua hai
   static const List<Map<String, String>> schedule = [
     {'days': '1-5', 'penalty': 'Base Fee (0%)'},
     {'days': '6-10', 'penalty': 'Base Fee + 25%'},
@@ -11,7 +11,7 @@ class PenaltyCalculator {
 
   static int calculate(int loanAmount, int overdueDays) {
     if (overdueDays <= 0) return 0;
-
+    
     int base;
     if (loanAmount <= 100) base = 50;
     else if (loanAmount <= 500) base = 100;
