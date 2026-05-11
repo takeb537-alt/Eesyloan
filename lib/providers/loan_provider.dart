@@ -7,7 +7,7 @@ import '../models/user_model.dart';
 
 class LoanProvider with ChangeNotifier {
   List<LoanModel> _loans = [];
-  UserModel _user = UserModel(id: '1', name: 'Smart User', email: '', phone: '');
+  UserModel _user = UserModel(id: '1', name: 'Itel User', email: '', phone: '');
 
   List<LoanModel> get loans => _loans;
   UserModel get user => _user;
@@ -20,7 +20,7 @@ class LoanProvider with ChangeNotifier {
   Future<void> _loadData() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/loan_data_final.json');
+      final file = File('${dir.path}/loan_data_v1.json');
       if (await file.exists()) {
         final data = json.decode(await file.readAsString());
         _loans = (data['loans'] as List).map((l) => LoanModel.fromMap(l)).toList();
