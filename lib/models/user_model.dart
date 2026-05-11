@@ -11,6 +11,11 @@ class UserModel {
     required this.phone,
   });
 
+  // Empty user for guest mode
+  factory UserModel.empty() {
+    return UserModel(id: '', name: 'Guest User', email: '', phone: '');
+  }
+
   Map<String, dynamic> toMap() {
     return {'id': id, 'name': name, 'email': email, 'phone': phone};
   }
@@ -18,7 +23,7 @@ class UserModel {
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
       id: map['id'] ?? '',
-      name: map['name'] ?? 'Guest User',
+      name: map['name'] ?? 'User',
       email: map['email'] ?? '',
       phone: map['phone'] ?? '',
     );
