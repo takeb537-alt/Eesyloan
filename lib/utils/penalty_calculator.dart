@@ -1,5 +1,5 @@
 class PenaltyCalculator {
-  // Static method jo screen call kar rahi hai
+  // Static method: Iska naam aur structure UI se 100% match karega
   static List<Map<String, String>> getSchedule() {
     return [
       {'days': '1-5', 'penalty': 'Base Fee (0%)'},
@@ -13,7 +13,7 @@ class PenaltyCalculator {
 
   static int calculate(int loanAmount, int overdueDays) {
     if (overdueDays <= 0) return 0;
-    int base = loanAmount <= 500 ? 100 : 200;
-    return (base * (overdueDays * 0.1)).toInt(); // Simple logic for build safety
+    int base = loanAmount <= 500 ? 100 : 250;
+    return (base + (overdueDays * 10)).toInt();
   }
 }
