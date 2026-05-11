@@ -1,13 +1,15 @@
 class PenaltyCalculator {
-  // Static List: Iska naam 'schedule' hi rakhna kyunki screen me yahi use hua hai
-  static const List<Map<String, String>> schedule = [
-    {'days': '1-5', 'penalty': 'Base Fee (0%)'},
-    {'days': '6-10', 'penalty': 'Base Fee + 25%'},
-    {'days': '11-15', 'penalty': 'Base Fee + 50%'},
-    {'days': '16-20', 'penalty': 'Base Fee + 75%'},
-    {'days': '21-25', 'penalty': 'Base Fee + 100%'},
-    {'days': '26-30', 'penalty': 'Base Fee + 200%'},
-  ];
+  // Static method jo screen (Profile/Repayment) call kar rahi hai
+  static List<Map<String, String>> getSchedule() {
+    return [
+      {'days': '1-5', 'penalty': 'Base Fee (0%)'},
+      {'days': '6-10', 'penalty': 'Base Fee + 25%'},
+      {'days': '11-15', 'penalty': 'Base Fee + 50%'},
+      {'days': '16-20', 'penalty': 'Base Fee + 75%'},
+      {'days': '21-25', 'penalty': 'Base Fee + 100%'},
+      {'days': '26-30', 'penalty': 'Base Fee + 200%'},
+    ];
+  }
 
   static int calculate(int loanAmount, int overdueDays) {
     if (overdueDays <= 0) return 0;
