@@ -13,16 +13,16 @@ class LoanProvider with ChangeNotifier {
   UserModel get user => _user;
   double get maxUnlockedAmount => 2500.0;
   
-  // 1. ISSE ERROR KHATAM HOGA: Agar UI "p.onTimePayments" (Property) maange
-  int get onTimePayments => _calculateOnTime();
+  // 1. ISSE ERROR JAYEGA: Agar UI "p.onTimePayments" maang raha hai (Getter)
+  int get onTimePayments => _countOnTime();
 
-  // 2. ISSE BHI ERROR KHATAM HOGA: Agar UI "p.onTimePayments()" (Method) maange
-  int onTimePaymentsMethod() => _calculateOnTime(); 
-  
-  // Backwards compatibility ke liye: Agar UI specific brackets maang raha hai
-  int getOnTimePayments() => _calculateOnTime();
+  // 2. ISSE BHI ERROR JAYEGA: Agar UI "p.onTimePayments()" maang raha hai (Method)
+  int onTimePayments() {
+    return _countOnTime();
+  }
 
-  int _calculateOnTime() {
+  // Common logic function
+  int _countOnTime() {
     return _loans.where((l) => 
       l.status == LoanStatus.completed && l.penalty == 0
     ).length;
@@ -35,7 +35,7 @@ class LoanProvider with ChangeNotifier {
   Future<void> _loadData() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/loan_v_final_final.json');
+      final file = File('${dir.path}/app_loan_data_v1.json');
       if (await file.exists()) {
         final data = json.decode(await file.readAsString());
         _loans = (data['loans'] as List).map((l) => LoanModel.fromMap(l)).toList();
