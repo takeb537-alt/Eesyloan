@@ -13,17 +13,26 @@ class LoanProvider with ChangeNotifier {
   UserModel get user => _user;
   double get maxUnlockedAmount => 2500.0;
   
-  // FIXED: Profile screen property (Property ki tarah call hoga)
-  int get onTimePayments => _loans.where((l) => l.status == LoanStatus.completed && l.penalty == 0).length;
+  // FIX: Getter (for p.onTimePayments)
+  int get onTimePayments => _getPaymentCount();
 
-  LoanProvider() {
-    _initData();
+  // FIX: Method (for p.onTimePayments()) - Dono support karega
+  int getOnTimePayments() => _getPaymentCount();
+
+  int _getPaymentCount() {
+    return _loans.where((l) => 
+      l.status == LoanStatus.completed && l.penalty == 0
+    ).length;
   }
 
-  Future<void> _initData() async {
+  LoanProvider() {
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/loan_data_final.json');
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/loan_final_v10.json');
       if (await file.exists()) {
         final data = json.decode(await file.readAsString());
         _loans = (data['loans'] as List).map((l) => LoanModel.fromMap(l)).toList();
@@ -31,14 +40,8 @@ class LoanProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint("Init Error: $e");
+      debugPrint("Data Load Error: $e");
     }
-  }
-
-  // Common Methods for UI
-  void addLoan(LoanModel loan) {
-    _loans.add(loan);
-    notifyListeners();
   }
 
   Future<void> logout() async {
@@ -47,9 +50,16 @@ class LoanProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void addLoan(LoanModel loan) {
+    _loans.add(loan);
+    notifyListeners();
+  }
+
   LoanModel? getActiveLoan() {
     try {
-      return _loans.firstWhere((l) => l.status == LoanStatus.active || l.status == LoanStatus.overdue);
+      return _loans.firstWhere((l) => 
+        l.status == LoanStatus.active || l.status == LoanStatus.overdue
+      );
     } catch (e) {
       return null;
     }
