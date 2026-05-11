@@ -1,8 +1,6 @@
 name: loan_app
-description: "A new Flutter project."
+description: "A simplified loan app."
 publish_to: 'none'
-
-# App version information
 version: 1.0.0+1
 
 environment:
@@ -11,8 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-  # External Packages (Spacing is critical here!)
   cupertino_icons: ^1.0.2
   provider: ^6.1.1
   path_provider: ^2.1.2
@@ -24,10 +20,5 @@ dev_dependencies:
   flutter_lints: ^3.0.0
 
 flutter:
-  # Design configuration
   uses-material-design: true
-
-  # Assets section (Agar images use karni hon toh yahan add karein)
-  # assets:
-  #   - assets/images/
   
