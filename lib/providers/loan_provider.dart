@@ -13,16 +13,16 @@ class LoanProvider with ChangeNotifier {
   UserModel get user => _user;
   double get maxUnlockedAmount => 2500.0;
   
-  // 1. ISSE ERROR JAYEGA: Agar UI "p.onTimePayments" maang raha hai (Getter)
-  int get onTimePayments => _countOnTime();
+  // 1. ISSE ERROR JAYEGA: Agar UI "p.onTimePayments" dhund raha hai
+  int get onTimePayments => _calculateLogic();
 
-  // 2. ISSE BHI ERROR JAYEGA: Agar UI "p.onTimePayments()" maang raha hai (Method)
-  int onTimePayments() {
-    return _countOnTime();
-  }
+  // 2. ISSE BHI ERROR JAYEGA: Agar UI "p.onTimePayments()" dhund raha hai
+  int onTimePaymentsMethod() => _calculateLogic(); 
+  
+  // Backwards compatibility
+  int getOnTimePayments() => _calculateLogic();
 
-  // Common logic function
-  int _countOnTime() {
+  int _calculateLogic() {
     return _loans.where((l) => 
       l.status == LoanStatus.completed && l.penalty == 0
     ).length;
@@ -35,7 +35,7 @@ class LoanProvider with ChangeNotifier {
   Future<void> _loadData() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/app_loan_data_v1.json');
+      final file = File('${dir.path}/loan_app_vFinal_Itel.json');
       if (await file.exists()) {
         final data = json.decode(await file.readAsString());
         _loans = (data['loans'] as List).map((l) => LoanModel.fromMap(l)).toList();
@@ -60,9 +60,7 @@ class LoanProvider with ChangeNotifier {
 
   LoanModel? getActiveLoan() {
     try {
-      return _loans.firstWhere((l) => 
-        l.status == LoanStatus.active || l.status == LoanStatus.overdue
-      );
+      return _loans.firstWhere((l) => l.status == LoanStatus.active || l.status == LoanStatus.overdue);
     } catch (e) {
       return null;
     }
