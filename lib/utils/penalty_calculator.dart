@@ -1,7 +1,17 @@
 class PenaltyCalculator {
+  // Static List: Iska use screens mein table banane ke liye ho raha hai
+  static const List<Map<String, String>> schedule = [
+    {'days': '1-5', 'penalty': 'Base Fee (0%)'},
+    {'days': '6-10', 'penalty': 'Base Fee + 25%'},
+    {'days': '11-15', 'penalty': 'Base Fee + 50%'},
+    {'days': '16-20', 'penalty': 'Base Fee + 75%'},
+    {'days': '21-25', 'penalty': 'Base Fee + 100%'},
+    {'days': '26-30', 'penalty': 'Base Fee + 200%'},
+  ];
+
   static int calculate(int loanAmount, int overdueDays) {
     if (overdueDays <= 0) return 0;
-    
+
     int base;
     if (loanAmount <= 100) base = 50;
     else if (loanAmount <= 500) base = 100;
@@ -19,13 +29,4 @@ class PenaltyCalculator {
 
     return (base * multiplier).toInt();
   }
-
-  static List<Map<String, String>> get schedule => [
-    {'days': '1-5', 'penalty': 'Base Fee'},
-    {'days': '6-10', 'penalty': '+25%'},
-    {'days': '11-15', 'penalty': '+50%'},
-    {'days': '16-20', 'penalty': '+75%'},
-    {'days': '21-25', 'penalty': '+100%'},
-    {'days': '26-30', 'penalty': '+200%'},
-  ];
 }
