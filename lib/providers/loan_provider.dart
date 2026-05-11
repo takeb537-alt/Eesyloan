@@ -12,13 +12,6 @@ class LoanProvider with ChangeNotifier {
   List<LoanModel> get loans => _loans;
   UserModel get user => _user;
   double get maxUnlockedAmount => 2500.0;
-  
-  // FIX: Ye function hai jo UI screen dhund rahi hai
-  int onTimePayments() {
-    return _loans.where((l) => 
-      l.status == LoanStatus.completed && l.penalty == 0
-    ).length;
-  }
 
   LoanProvider() {
     _loadData();
@@ -27,7 +20,7 @@ class LoanProvider with ChangeNotifier {
   Future<void> _loadData() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/loan_v_final.json');
+      final file = File('${dir.path}/loan_app_simple.json');
       if (await file.exists()) {
         final data = json.decode(await file.readAsString());
         _loans = (data['loans'] as List).map((l) => LoanModel.fromMap(l)).toList();
