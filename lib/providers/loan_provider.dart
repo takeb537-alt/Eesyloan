@@ -11,21 +11,19 @@ class LoanProvider with ChangeNotifier {
 
   List<LoanModel> get loans => _loans;
   UserModel get user => _user;
-  double get maxUnlockedAmount => 2000.0;
+  double get maxUnlockedAmount => 2500.0;
   
-  // Property for Profile Screen
-  int get onTimePayments {
-    return _loans.where((l) => l.status == LoanStatus.completed && l.penalty == 0).length;
-  }
+  // FIXED: Profile screen property (Property ki tarah call hoga)
+  int get onTimePayments => _loans.where((l) => l.status == LoanStatus.completed && l.penalty == 0).length;
 
   LoanProvider() {
-    _init();
+    _initData();
   }
 
-  Future<void> _init() async {
+  Future<void> _initData() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/loan_v5.json');
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/loan_data_final.json');
       if (await file.exists()) {
         final data = json.decode(await file.readAsString());
         _loans = (data['loans'] as List).map((l) => LoanModel.fromMap(l)).toList();
@@ -33,10 +31,11 @@ class LoanProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint("Error loading: $e");
+      debugPrint("Init Error: $e");
     }
   }
 
+  // Common Methods for UI
   void addLoan(LoanModel loan) {
     _loans.add(loan);
     notifyListeners();
