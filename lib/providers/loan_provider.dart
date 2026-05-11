@@ -7,9 +7,9 @@ import '../models/user_model.dart';
 
 class LoanProvider with ChangeNotifier {
   List<LoanModel> _loans = [];
-  UserModel _user = UserModel(id: '1', name: 'Smart User', email: '', phone: '');
+  UserModel _user = UserModel(id: '1', name: 'Itel User', email: '', phone: '');
 
-  // Trick: Simple variable (Isse error kabhi nahi aayega)
+  // TRICK: Ye variable hona zaroori hai build pass hone ke liye
   int onTimePayments = 0; 
 
   List<LoanModel> get loans => _loans;
@@ -20,7 +20,6 @@ class LoanProvider with ChangeNotifier {
     _loadData();
   }
 
-  // Logic to calculate stats
   void _calculateStats() {
     onTimePayments = _loans.where((l) => 
       l.status == LoanStatus.completed && l.penalty == 0
@@ -31,7 +30,7 @@ class LoanProvider with ChangeNotifier {
   Future<void> _loadData() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/loan_v_final_itel.json');
+      final file = File('${dir.path}/loan_data_fixed.json');
       if (await file.exists()) {
         final data = json.decode(await file.readAsString());
         _loans = (data['loans'] as List).map((l) => LoanModel.fromMap(l)).toList();
