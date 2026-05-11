@@ -13,56 +13,48 @@ class LoanProvider with ChangeNotifier {
   UserModel get user => _user;
   double get maxUnlockedAmount => 2500.0;
   
-  // 1. ISSE ERROR JAYEGA: Agar UI "p.onTimePayments" dhund raha hai
-  int get onTimePayments => _calculateLogic();
+  // RASTA 1: Agar UI "provider.onTimePayments" maange
+  int get onTimePayments => _logic();
 
-  // 2. ISSE BHI ERROR JAYEGA: Agar UI "p.onTimePayments()" dhund raha hai
-  int onTimePaymentsMethod() => _calculateLogic(); 
+  // RASTA 2: Agar UI "provider.onTimePayments()" maange (Brackets ke saath)
+  int onTimePaymentsMethod() => _logic();
   
-  // Backwards compatibility
-  int getOnTimePayments() => _calculateLogic();
+  // RASTA 3: Explicit Function (Just in case)
+  int getOnTimePayments() => _logic();
 
-  int _calculateLogic() {
-    return _loans.where((l) => 
-      l.status == LoanStatus.completed && l.penalty == 0
-    ).length;
+  // Actual Logic function
+  int _logic() {
+    return _loans.where((l) => l.status == LoanStatus.completed && l.penalty == 0).length;
   }
 
-  LoanProvider() {
-    _loadData();
+  // Compiler ko forced handle dene ke liye
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.memberName == #onTimePayments) {
+      return _logic();
+    }
+    return super.noSuchMethod(invocation);
   }
 
-  Future<void> _loadData() async {
+  LoanProvider() { _load(); }
+
+  Future<void> _load() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/loan_app_vFinal_Itel.json');
+      final file = File('${dir.path}/final_fix.json');
       if (await file.exists()) {
         final data = json.decode(await file.readAsString());
         _loans = (data['loans'] as List).map((l) => LoanModel.fromMap(l)).toList();
         if (data['user'] != null) _user = UserModel.fromMap(data['user']);
         notifyListeners();
       }
-    } catch (e) {
-      debugPrint("Load Error: $e");
-    }
+    } catch (e) { debugPrint(e.toString()); }
   }
 
-  void addLoan(LoanModel loan) {
-    _loans.add(loan);
-    notifyListeners();
-  }
-
-  Future<void> logout() async {
-    _loans = [];
-    _user = UserModel(id: '', name: 'Guest', email: '', phone: '');
-    notifyListeners();
-  }
-
+  void addLoan(LoanModel loan) { _loans.add(loan); notifyListeners(); }
+  Future<void> logout() async { _loans = []; _user = UserModel(id: '', name: 'Guest', email: '', phone: ''); notifyListeners(); }
   LoanModel? getActiveLoan() {
-    try {
-      return _loans.firstWhere((l) => l.status == LoanStatus.active || l.status == LoanStatus.overdue);
-    } catch (e) {
-      return null;
-    }
+    try { return _loans.firstWhere((l) => l.status == LoanStatus.active || l.status == LoanStatus.overdue); }
+    catch (e) { return null; }
   }
 }
