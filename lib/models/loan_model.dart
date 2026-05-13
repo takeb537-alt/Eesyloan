@@ -1,110 +1,80 @@
-import 'dart:io';
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-import '../models/loan_model.dart';
-import '../models/user_model.dart'; // Ensure this file exists
+enum LoanStatus { pending, active, overdue, completed }
 
-class LoanProvider with ChangeNotifier {
-  List<LoanModel> _loans = [];
-  UserModel _user = UserModel(
-    id: '1', 
-    name: 'User Name', 
-    email: 'user@example.com', 
-    phone: '9876543210'
-  );
+class LoanModel {
+  final String id;
+  final String userId;
+  final double amount;
+  final double interestRate;
+  final int termMonths;
+  final LoanStatus status;
+  final DateTime startDate;
+  final DateTime dueDate;
+  final String purpose;
 
-  // Getters for UI Screens
-  List<LoanModel> get loans => _loans;
-  UserModel get user => _user; // Profile screen needs this
-  
-  // Dashboard/Profile stats
-  double get maxUnlockedAmount => 2000.0;
-  
-  int get onTimePayments {
-    return _loans.where((l) => 
-      l.status == LoanStatus.completed && l.penalty == 0
-    ).length;
+  LoanModel({
+    required this.id,
+    required this.userId,
+    required this.amount,
+    required this.interestRate,
+    required this.termMonths,
+    required this.status,
+    required this.startDate,
+    required this.dueDate,
+    required this.purpose,
+  });
+
+  factory LoanModel.fromMap(Map<String, dynamic> map) {
+    return LoanModel(
+      id: map['id'] ?? '',
+      userId: map['userId'] ?? '',
+      amount: (map['amount'] ?? 0).toDouble(),
+      interestRate: (map['interestRate'] ?? 0).toDouble(),
+      termMonths: map['termMonths'] ?? 0,
+      status: LoanStatus.values.firstWhere(
+        (e) => e.name == (map['status'] ?? 'pending'),
+        orElse: () => LoanStatus.pending,
+      ),
+      startDate: DateTime.tryParse(map['startDate'] ?? '') ?? DateTime.now(),
+      dueDate: DateTime.tryParse(map['dueDate'] ?? '') ?? DateTime.now(),
+      purpose: map['purpose'] ?? '',
+    );
   }
 
-  LoanProvider() {
-    _loadInitialData();
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'userId': userId,
+      'amount': amount,
+      'interestRate': interestRate,
+      'termMonths': termMonths,
+      'status': status.name,
+      'startDate': startDate.toIso8601String(),
+      'dueDate': dueDate.toIso8601String(),
+      'purpose': purpose,
+    };
   }
 
-  // Load data from local storage
-  Future<void> _loadInitialData() async {
-    try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/loan_data.json');
-      
-      if (await file.exists()) {
-        final Map<String, dynamic> data = json.decode(await file.readAsString());
-        
-        if (data['loans'] != null) {
-          _loans = (data['loans'] as List)
-              .map((item) => LoanModel.fromMap(item))
-              .toList();
-        }
-        if (data['user'] != null) {
-          _user = UserModel.fromMap(data['user']);
-        }
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint("Error loading data: $e");
-    }
-  }
-
-  // Save data to local storage
-  Future<void> _saveToDisk() async {
-    try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/loan_data.json');
-      
-      final dataToSave = {
-        'loans': _loans.map((l) => l.toMap()).toList(),
-        'user': _user.toMap(),
-      };
-      
-      await file.writeAsString(json.encode(dataToSave));
-    } catch (e) {
-      debugPrint("Error saving data: $e");
-    }
-  }
-
-  // --- Actions ---
-
-  void addLoan(LoanModel loan) {
-    _loans.add(loan);
-    _saveToDisk();
-    notifyListeners();
-  }
-
-  void updateLoan(LoanModel updatedLoan) {
-    final index = _loans.indexWhere((l) => l.id == updatedLoan.id);
-    if (index != -1) {
-      _loans[index] = updatedLoan;
-      _saveToDisk();
-      notifyListeners();
-    }
-  }
-
-  // Profile Screen Logout
-  Future<void> logout() async {
-    _loans = [];
-    _user = UserModel(id: '', name: 'Guest', email: '', phone: '');
-    await _saveToDisk();
-    notifyListeners();
-  }
-
-  // Used by Home Screen
-  LoanModel? getActiveLoan() {
-    try {
-      return _loans.firstWhere(
-        (l) => l.status == LoanStatus.active || l.status == LoanStatus.overdue
-      );
-    } catch (e) {
-      return null;
-    }
+  LoanModel copyWith({
+    String? id,
+    String? userId,
+    double? amount,
+    double? interestRate,
+    int? termMonths,
+    LoanStatus? status,
+    DateTime? startDate,
+    DateTime? dueDate,
+    String? purpose,
+  }) {
+    return LoanModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      amount: amount ?? this.amount,
+      interestRate: interestRate ?? this.interestRate,
+      termMonths: termMonths ?? this.termMonths,
+      status: status ?? this.status,
+      startDate: startDate ?? this.startDate,
+      dueDate: dueDate ?? this.dueDate,
+      purpose: purpose ?? this.purpose,
+    );
   }
 }
