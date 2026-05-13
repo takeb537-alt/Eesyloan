@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@@v4
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -24,20 +24,23 @@ jobs:
 
       - name: Final Repair and Build
         run: |
-          # 1. Project name lowercase mein hona chahiye, ye command use pakka kar degi
+          # 1. Project name thik karo (lowercase)
           sed -i 's/name: .*/name: eesyloan/' pubspec.yaml
           
-          # 2. Dependencies fetch karo
+          # 2. Purana kachra saaf karo
+          rm -rf android/local.properties
+          
+          # 3. Dependencies fetch karo
           flutter pub get
           
-          # 3. Android structure ko fresh karo
+          # 4. Android structure fresh karo (taaki Gradle issue na aaye)
           flutter create . --platforms android
           
-          # 4. Local properties setup
+          # 5. Local properties setup
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           
-          # 5. Final Build
+          # 6. Final Build command
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK
