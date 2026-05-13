@@ -8,29 +8,22 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v3
+      - uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Flutter 3.22.0
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.22.0
           channel: stable
           cache: true
 
-      - name: Create project structure
-        run: |
-          mkdir -p lib/models lib/providers lib/screens lib/widgets assets/images
-          mkdir -p android/app/src/main/res/values
-          mkdir -p android/app/src/main/res/drawable
+      - name: Create directories
+        run: mkdir -p lib/models lib/providers lib/screens assets/images
 
       - name: Write pubspec.yaml
         run: |
@@ -44,17 +37,10 @@ jobs:
           dependencies:
             flutter:
               sdk: flutter
-            flutter_localizations:
-              sdk: flutter
             cupertino_icons: ^1.0.8
             provider: ^6.1.2
             shared_preferences: ^2.2.3
             intl: ^0.19.0
-            pdf: ^3.10.8
-            path_provider: ^2.1.3
-            open_file: ^3.3.2
-            image_picker: ^1.1.2
-            permission_handler: ^11.3.1
           dev_dependencies:
             flutter_test:
               sdk: flutter
@@ -65,39 +51,18 @@ jobs:
               - assets/images/
           EOF
 
-      - name: Write all Dart files
+      - name: Write user_model.dart
         run: |
-          python3 << 'PYEOF'
-          import os
-
-          files = {}
-
-          # ─── models/user_model.dart ───────────────────────────────────────────
-          files['lib/models/user_model.dart'] = '''
-          import 'dart:convert';
-          import 'dart:io';
-          import 'package:flutter/material.dart';
-          import 'package:shared_preferences/shared_preferences.dart';
-          import 'package:path_provider/path_provider.dart';
+          cat > lib/models/user_model.dart << 'EOF'
+          enum LoanStatus { active, overdue, completed, pending }
 
           class UserModel {
             final String fullName;
-            final List<String> allIds;
-
-            UserModel({required this.fullName, required this.allIds});
-
-            Map<String, dynamic> toJson() => {
-              'fullName': fullName,
-              'allIds': allIds,
-            };
-
-            factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
-              fullName: json['fullName'] ?? '',
-              allIds: List<String>.from(json['allIds'] ?? []),
-            );
+            UserModel({required this.fullName});
+            Map<String, dynamic> toJson() => {'fullName': fullName};
+            factory UserModel.fromJson(Map<String, dynamic> j) =>
+                UserModel(fullName: j['fullName'] ?? '');
           }
-
-          enum LoanStatus { active, overdue, completed, pending }
 
           class LoanModel {
             final String id;
@@ -109,7 +74,6 @@ jobs:
             double amountPaid;
             LoanStatus status;
             final DateTime appliedDate;
-            String? pdfPath;
             bool autopayActive;
 
             LoanModel({
@@ -122,28 +86,11 @@ jobs:
               this.amountPaid = 0,
               this.status = LoanStatus.pending,
               required this.appliedDate,
-              this.pdfPath,
               this.autopayActive = false,
             });
 
             double get totalDue => amount + (amount * interestRate / 100) + penalty;
             double get principalDue => amount - amountPaid;
-
-            double calculatePenalty() {
-              if (status == LoanStatus.overdue) {
-                final days = DateTime.now().difference(appliedDate).inDays;
-                if (days <= 0) return 0;
-                final base = amount * 0.01;
-                if (days <= 5) return base * 0.5;
-                if (days <= 10) return base * 1.0;
-                if (days <= 15) return base * 1.5;
-                if (days <= 20) return base * 2.0;
-                if (days <= 25) return base * 2.5;
-                if (days <= 30) return base * 3.0;
-                return base * 3.0;
-              }
-              return 0;
-            }
 
             Map<String, dynamic> toJson() => {
               'id': id,
@@ -155,74 +102,48 @@ jobs:
               'amountPaid': amountPaid,
               'status': status.name,
               'appliedDate': appliedDate.toIso8601String(),
-              'pdfPath': pdfPath,
               'autopayActive': autopayActive,
             };
 
-            factory LoanModel.fromJson(Map<String, dynamic> json) => LoanModel(
-              id: json['id'] ?? '',
-              userId: json['userId'] ?? '',
-              amount: (json['amount'] ?? 0).toDouble(),
-              interestRate: (json['interestRate'] ?? 0).toDouble(),
-              termMonths: json['termMonths'] ?? 0,
-              penalty: (json['penalty'] ?? 0).toDouble(),
-              amountPaid: (json['amountPaid'] ?? 0).toDouble(),
+            factory LoanModel.fromJson(Map<String, dynamic> j) => LoanModel(
+              id: j['id'] ?? '',
+              userId: j['userId'] ?? '',
+              amount: (j['amount'] ?? 0).toDouble(),
+              interestRate: (j['interestRate'] ?? 0).toDouble(),
+              termMonths: j['termMonths'] ?? 0,
+              penalty: (j['penalty'] ?? 0).toDouble(),
+              amountPaid: (j['amountPaid'] ?? 0).toDouble(),
               status: LoanStatus.values.firstWhere(
-                (e) => e.name == json['status'],
+                (e) => e.name == j['status'],
                 orElse: () => LoanStatus.pending,
               ),
-              appliedDate: DateTime.tryParse(json['appliedDate'] ?? '') ?? DateTime.now(),
-              pdfPath: json['pdfPath'],
-              autopayActive: json['autopayActive'] ?? false,
+              appliedDate: DateTime.tryParse(j['appliedDate'] ?? '') ?? DateTime.now(),
+              autopayActive: j['autopayActive'] ?? false,
             );
           }
+          EOF
 
-          class PenaltyCalc {
-            static double calculate(double amount) {
-              if (amount <= 100) return 10;
-              if (amount <= 500) return 30;
-              if (amount <= 1000) return 60;
-              if (amount <= 1500) return 100;
-              return 300;
-            }
-          }
-          '''.strip()
-
-          # ─── providers/app_provider.dart ─────────────────────────────────────
-          files['lib/providers/app_provider.dart'] = '''
+      - name: Write app_provider.dart
+        run: |
+          cat > lib/providers/app_provider.dart << 'EOF'
           import 'dart:convert';
           import 'package:flutter/material.dart';
           import 'package:shared_preferences/shared_preferences.dart';
           import '../models/user_model.dart';
 
           class AppProvider extends ChangeNotifier {
-            static const _kUser = 'user';
-            static const _kOnboarded = 'onboarded';
-            static const _kOnTime = 'ontime';
-            static const _kDark = 'dark';
-            static const _kLang = 'lang';
-            static const _kLoggedIn = 'loggedIn';
-            static const _kPermsDone = 'permsDone';
-
             UserModel? _user;
             List<LoanModel> _loans = [];
-            bool _onboarded = false;
-            int _onTimePayments = 0;
             bool _isDark = false;
-            String _language = 'en';
             bool _loggedIn = false;
-            bool _permsDone = false;
-            String _profilePhoto = '';
 
             UserModel? get user => _user;
             List<LoanModel> get loans => _loans;
-            bool get onboarded => _onboarded;
-            int get onTimePayments => _onTimePayments;
             bool get isDark => _isDark;
-            String get language => _language;
             bool get loggedIn => _loggedIn;
-            bool get permsDone => _permsDone;
-            String get profilePhoto => _profilePhoto;
+
+            int get onTimePayments =>
+                _loans.where((l) => l.status == LoanStatus.completed && l.penalty == 0).length;
 
             LoanModel? get activeLoan {
               try {
@@ -235,68 +156,23 @@ jobs:
             }
 
             double get maxUnlockedAmount {
-              if (_loans.isEmpty) return 5000;
-              final completed = _loans.where(
-                (l) => l.status == LoanStatus.completed && l.penalty == 0,
-              ).length;
-              if (completed >= 5) return 50000;
-              if (completed >= 3) return 25000;
-              if (completed >= 1) return 15000;
+              final c = onTimePayments;
+              if (c >= 5) return 50000;
+              if (c >= 3) return 25000;
+              if (c >= 1) return 15000;
               return 5000;
             }
 
             Future<void> load() async {
               final p = await SharedPreferences.getInstance();
-              _onboarded = p.getBool(_kOnboarded) ?? false;
-              _onTimePayments = p.getInt(_kOnTime) ?? 0;
-              _isDark = p.getBool(_kDark) ?? false;
-              _language = p.getString(_kLang) ?? 'en';
-              _loggedIn = p.getBool(_kLoggedIn) ?? false;
-              _permsDone = p.getBool(_kPermsDone) ?? false;
-              _profilePhoto = p.getString('profilePhoto') ?? '';
-              final userStr = p.getString(_kUser);
-              if (userStr != null) {
-                _user = UserModel.fromJson(jsonDecode(userStr));
+              _isDark = p.getBool('dark') ?? false;
+              _loggedIn = p.getBool('loggedIn') ?? false;
+              final us = p.getString('user');
+              if (us != null) _user = UserModel.fromJson(jsonDecode(us));
+              final ls = p.getString('loans');
+              if (ls != null) {
+                _loans = (jsonDecode(ls) as List).map((e) => LoanModel.fromJson(e)).toList();
               }
-              final loansStr = p.getString('loans');
-              if (loansStr != null) {
-                final List list = jsonDecode(loansStr);
-                _loans = list.map((e) => LoanModel.fromJson(e)).toList();
-              }
-              notifyListeners();
-            }
-
-            Future<void> saveUser(UserModel u) async {
-              _user = u;
-              final p = await SharedPreferences.getInstance();
-              await p.setString(_kUser, jsonEncode(u.toJson()));
-              notifyListeners();
-            }
-
-            Future<void> addLoan(LoanModel loan) async {
-              _loans.add(loan);
-              await _saveLoans();
-              notifyListeners();
-            }
-
-            Future<void> updateLoan(LoanModel updated) async {
-              final i = _loans.indexWhere((l) => l.id == updated.id);
-              if (i != -1) {
-                _loans[i] = updated;
-                await _saveLoans();
-                notifyListeners();
-              }
-            }
-
-            Future<void> _saveLoans() async {
-              final p = await SharedPreferences.getInstance();
-              await p.setString('loans', jsonEncode(_loans.map((l) => l.toJson()).toList()));
-            }
-
-            Future<void> setOnboarded() async {
-              _onboarded = true;
-              final p = await SharedPreferences.getInstance();
-              await p.setBool(_kOnboarded, true);
               notifyListeners();
             }
 
@@ -304,8 +180,8 @@ jobs:
               _user = u;
               _loggedIn = true;
               final p = await SharedPreferences.getInstance();
-              await p.setBool(_kLoggedIn, true);
-              await p.setString(_kUser, jsonEncode(u.toJson()));
+              await p.setBool('loggedIn', true);
+              await p.setString('user', jsonEncode(u.toJson()));
               notifyListeners();
             }
 
@@ -314,42 +190,38 @@ jobs:
               _loggedIn = false;
               _loans = [];
               final p = await SharedPreferences.getInstance();
-              await p.setBool(_kLoggedIn, false);
+              await p.setBool('loggedIn', false);
               notifyListeners();
+            }
+
+            Future<void> addLoan(LoanModel loan) async {
+              _loans.add(loan);
+              await _save();
+              notifyListeners();
+            }
+
+            Future<void> updateLoan(LoanModel updated) async {
+              final i = _loans.indexWhere((l) => l.id == updated.id);
+              if (i != -1) { _loans[i] = updated; await _save(); notifyListeners(); }
+            }
+
+            Future<void> _save() async {
+              final p = await SharedPreferences.getInstance();
+              await p.setString('loans', jsonEncode(_loans.map((l) => l.toJson()).toList()));
             }
 
             Future<void> toggleDark() async {
               _isDark = !_isDark;
               final p = await SharedPreferences.getInstance();
-              await p.setBool(_kDark, _isDark);
-              notifyListeners();
-            }
-
-            Future<void> setLanguage(String lang) async {
-              _language = lang;
-              final p = await SharedPreferences.getInstance();
-              await p.setString(_kLang, lang);
-              notifyListeners();
-            }
-
-            Future<void> setProfilePhoto(String path) async {
-              _profilePhoto = path;
-              final p = await SharedPreferences.getInstance();
-              await p.setString('profilePhoto', path);
-              notifyListeners();
-            }
-
-            Future<void> setPermsDone() async {
-              _permsDone = true;
-              final p = await SharedPreferences.getInstance();
-              await p.setBool(_kPermsDone, true);
+              await p.setBool('dark', _isDark);
               notifyListeners();
             }
           }
-          '''.strip()
+          EOF
 
-          # ─── screens/home_screen.dart ─────────────────────────────────────────
-          files['lib/screens/home_screen.dart'] = '''
+      - name: Write home_screen.dart
+        run: |
+          cat > lib/screens/home_screen.dart << 'EOF'
           import 'package:flutter/material.dart';
           import 'package:provider/provider.dart';
           import '../providers/app_provider.dart';
@@ -357,21 +229,17 @@ jobs:
 
           class HomeScreen extends StatelessWidget {
             const HomeScreen({super.key});
-
             @override
             Widget build(BuildContext context) {
               return Consumer<AppProvider>(
                 builder: (context, p, _) {
                   final loan = p.activeLoan;
-                  final user = p.user;
+                  final firstName = p.user?.fullName.split(' ').first ?? 'User';
                   return Scaffold(
-                    appBar: AppBar(
-                      title: Text('Hi, \${user?.fullName.split(" ").first ?? "User"}'),
-                    ),
-                    body: SingleChildScrollView(
+                    appBar: AppBar(title: Text('Hi, $firstName')),
+                    body: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Card(
                             child: Padding(
@@ -380,10 +248,9 @@ jobs:
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text('Credit Limit', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  Text('₹\${p.maxUnlockedAmount.toInt()}'),
+                                  Text('Rs. ${p.maxUnlockedAmount.toInt()}'),
                                   const SizedBox(height: 8),
-                                  const Text('On-Time Payments', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  Text('\${p.onTimePayments} On-Time Payments'),
+                                  Text('${p.onTimePayments} On-Time Payments'),
                                 ],
                               ),
                             ),
@@ -396,16 +263,10 @@ jobs:
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('Active Loan', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    Text('Amount: ₹\${loan.amount.toInt()}'),
-                                    Text('Status: \${loan.status.name}'),
-                                    Text('Total Due: ₹\${loan.totalDue.toInt()}'),
-                                    if (loan.status != LoanStatus.completed)
-                                      ElevatedButton(
-                                        onPressed: () {},
-                                        child: const Text('Pay Now'),
-                                      ),
-                                    Text('\${p.onTimePayments} On-Time Payments'),
+                                    const Text('Active Loan'),
+                                    Text('Amount: Rs. ${loan.amount.toInt()}'),
+                                    Text('Status: ${loan.status.name}'),
+                                    Text('Total Due: Rs. ${loan.totalDue.toInt()}'),
                                   ],
                                 ),
                               ),
@@ -423,10 +284,11 @@ jobs:
               );
             }
           }
-          '''.strip()
+          EOF
 
-          # ─── screens/my_loans_screen.dart ─────────────────────────────────────
-          files['lib/screens/my_loans_screen.dart'] = '''
+      - name: Write my_loans_screen.dart
+        run: |
+          cat > lib/screens/my_loans_screen.dart << 'EOF'
           import 'package:flutter/material.dart';
           import 'package:provider/provider.dart';
           import '../providers/app_provider.dart';
@@ -434,7 +296,6 @@ jobs:
 
           class MyLoansScreen extends StatelessWidget {
             const MyLoansScreen({super.key});
-
             @override
             Widget build(BuildContext context) {
               return Consumer<AppProvider>(
@@ -446,89 +307,148 @@ jobs:
                         ? const Center(child: Text('No loans yet'))
                         : ListView.builder(
                             itemCount: loans.length,
-                            itemBuilder: (ctx, i) => _LoanCard(loan: loans[i]),
+                            itemBuilder: (ctx, i) {
+                              final loan = loans[i];
+                              final color = loan.status == LoanStatus.completed
+                                  ? Colors.green
+                                  : loan.status == LoanStatus.overdue
+                                      ? Colors.red
+                                      : Colors.blue;
+                              return Card(
+                                margin: const EdgeInsets.all(8),
+                                child: ListTile(
+                                  title: Text('Rs. ${loan.amount.toInt()}'),
+                                  subtitle: Text('Status: ${loan.status.name}'),
+                                  trailing: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+                                    child: Text(loan.status.name, style: const TextStyle(color: Colors.white)),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                   );
                 },
               );
             }
           }
+          EOF
 
-          class _LoanCard extends StatelessWidget {
-            final LoanModel loan;
-            const _LoanCard({required this.loan});
+      - name: Write profile_screen.dart
+        run: |
+          cat > lib/screens/profile_screen.dart << 'EOF'
+          import 'package:flutter/material.dart';
+          import 'package:provider/provider.dart';
+          import '../providers/app_provider.dart';
+          import '../models/user_model.dart';
 
-            Color get _color => loan.status == LoanStatus.completed
-                ? Colors.green
-                : loan.status == LoanStatus.overdue
-                    ? const Color(0xFF2E7D32)
-                    : Colors.blue;
-
+          class ProfileScreen extends StatelessWidget {
+            const ProfileScreen({super.key});
             @override
             Widget build(BuildContext context) {
-              return Card(
-                margin: const EdgeInsets.all(8),
-                child: ListTile(
-                  title: Text('₹\${loan.amount.toInt()}'),
-                  subtitle: Text('Status: \${loan.status.name}'),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _color,
-                      borderRadius: BorderRadius.circular(8),
+              return Consumer<AppProvider>(
+                builder: (context, p, _) {
+                  return Scaffold(
+                    appBar: AppBar(title: const Text('Profile')),
+                    body: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Text(p.user?.fullName ?? 'User',
+                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 16),
+                          ListTile(title: const Text('On-Time Payments'), trailing: Text('${p.onTimePayments}')),
+                          ListTile(title: const Text('Credit Limit'), trailing: Text('Rs. ${p.maxUnlockedAmount.toInt()}')),
+                          const SizedBox(height: 24),
+                          ElevatedButton(
+                            onPressed: () async { await p.logout(); },
+                            child: const Text('Logout'),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Text(
-                      loan.status.name,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  onTap: loan.status != LoanStatus.completed
-                      ? () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => _LoanDetailScreen(loan: loan),
-                            ),
-                          )
-                      : null,
+                  );
+                },
+              );
+            }
+          }
+          EOF
+
+      - name: Write main.dart
+        run: |
+          cat > lib/main.dart << 'EOF'
+          import 'package:flutter/material.dart';
+          import 'package:provider/provider.dart';
+          import 'providers/app_provider.dart';
+          import 'screens/home_screen.dart';
+          import 'screens/my_loans_screen.dart';
+          import 'screens/profile_screen.dart';
+
+          void main() async {
+            WidgetsFlutterBinding.ensureInitialized();
+            final app = AppProvider();
+            await app.load();
+            runApp(ChangeNotifierProvider.value(value: app, child: const EasyLoanApp()));
+          }
+
+          class EasyLoanApp extends StatelessWidget {
+            const EasyLoanApp({super.key});
+            @override
+            Widget build(BuildContext context) {
+              return Consumer<AppProvider>(
+                builder: (context, p, _) => MaterialApp(
+                  title: 'EasyLoan',
+                  theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.green), useMaterial3: true),
+                  darkTheme: ThemeData.dark(),
+                  themeMode: p.isDark ? ThemeMode.dark : ThemeMode.light,
+                  home: const MainNav(),
                 ),
               );
             }
           }
 
-          class _LoanDetailScreen extends StatelessWidget {
-            final LoanModel loan;
-            const _LoanDetailScreen({required this.loan});
+          class MainNav extends StatefulWidget {
+            const MainNav({super.key});
+            @override
+            State<MainNav> createState() => _MainNavState();
+          }
 
+          class _MainNavState extends State<MainNav> {
+            int _i = 0;
+            final _screens = const [HomeScreen(), MyLoansScreen(), ProfileScreen()];
             @override
             Widget build(BuildContext context) {
               return Scaffold(
-                appBar: AppBar(title: const Text('Loan Detail')),
-                body: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Amount: ₹\${loan.amount.toInt()}'),
-                      Text('Status: \${loan.status.name}'),
-                      Text('Total Due: ₹\${loan.totalDue.toInt()}'),
-                      if (loan.status != LoanStatus.completed) ...[
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {},
-                          child: const Text('Make Payment'),
-                        ),
-                      ],
-                      if (loan.status != LoanStatus.completed) ...[
-                        if (loan.status != LoanStatus.completed)
-                          Text('Due: ₹\${loan.principalDue.toInt()}'),
-                      ],
-                    ],
-                  ),
+                body: _screens[_i],
+                bottomNavigationBar: NavigationBar(
+                  selectedIndex: _i,
+                  onDestinationSelected: (i) => setState(() => _i = i),
+                  destinations: const [
+                    NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
+                    NavigationDestination(icon: Icon(Icons.list), label: 'Loans'),
+                    NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
+                  ],
                 ),
               );
             }
           }
-          '''.strip()
+          EOF
 
-          # ─── screens/profile_screen.dart ──────────────────────────────────────
-          files['lib/screens/profile_screen.dar
+      - name: Recreate Android
+        run: |
+          rm -rf android
+          flutter create --platforms=android .
+          chmod +x android/gradlew
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release --no-shrink
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyLoan-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
