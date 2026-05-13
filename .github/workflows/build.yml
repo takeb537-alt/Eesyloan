@@ -16,23 +16,25 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.0'
-          cache: true
 
-      - name: Build APK
+      - name: Repair and Build
         run: |
-          # Sabse pehle pub get
+          # Sabse pehle dependencies sahi karo
           flutter pub get
-          # local.properties ki tension khatam
-          mkdir -p android
+          
+          # Project structure ko naye Flutter ke hisaab se repair karo (Purana Gradle hat jayega)
+          flutter create . --platforms android
+          
+          # local.properties setup
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
-          # Seedha build, bina kisi external gradle wrapper ke
+          
+          # Build process
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK
