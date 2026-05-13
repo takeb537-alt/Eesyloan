@@ -22,27 +22,45 @@ jobs:
         with:
           flutter-version: '3.22.0'
 
-      - name: Master Fix and Build
+      - name: Force Reconstruction and Build
         run: |
-          # Step 1: Forcefully fix the name to lowercase in pubspec.yaml
-          sed -i 's/name: .*/name: eesyloan/' pubspec.yaml || echo "name: eesyloan" > pubspec.yaml
+          # 1. Purani files delete karo jo error de sakti hain
+          rm -f pubspec.yaml
+          rm -rf android/
           
-          # Step 2: Clean and Repair Android files
-          flutter clean
+          # 2. Ek dam naya valid pubspec file create karo (Lowercase name ke saath)
+          cat <<EOF > pubspec.yaml
+          name: eesyloan
+          description: A new Flutter project.
+          version: 1.0.0+1
+          environment:
+            sdk: '>=3.0.0 <4.0.0'
+          dependencies:
+            flutter:
+              sdk: flutter
+            cupertino_icons: ^1.0.6
+          dev_dependencies:
+            flutter_test:
+              sdk: flutter
+            flutter_lints: ^3.0.0
+          flutter:
+            uses-material-design: true
+          EOF
+          
+          # 3. Android folder ko scratch se generate karo
           flutter create . --platforms android --overwrite
           
-          # Step 3: Get all dependencies
-          flutter pub get
-          
-          # Step 4: Setup local.properties correctly
+          # 4. Permissions aur Properties setup
+          chmod +x android/gradlew
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           
-          # Step 5: High Power Build
+          # 5. Final Build (Pure Power)
+          flutter pub get
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: EasyLoan-App
+          name: EasyLoan-App-Final
           path: build/app/outputs/flutter-apk/app-release.apk
