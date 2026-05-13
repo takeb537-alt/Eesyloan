@@ -22,13 +22,13 @@ jobs:
         with:
           flutter-version: '3.22.0'
 
-      - name: Force Reconstruction and Build
+      - name: Nuclear Fix and Build
         run: |
-          # 1. Purani files delete karo jo error de sakti hain
-          rm -f pubspec.yaml
+          # 1. Sab kuch jad se mitao jo build rokti hai
           rm -rf android/
+          rm -f pubspec.yaml
           
-          # 2. Ek dam naya valid pubspec file create karo (Lowercase name ke saath)
+          # 2. Nayi clean pubspec file create karo
           cat <<EOF > pubspec.yaml
           name: eesyloan
           description: A new Flutter project.
@@ -42,25 +42,30 @@ jobs:
           dev_dependencies:
             flutter_test:
               sdk: flutter
-            flutter_lints: ^3.0.0
           flutter:
             uses-material-design: true
           EOF
           
-          # 3. Android folder ko scratch se generate karo
+          # 3. Fresh Android structure generate karo
           flutter create . --platforms android --overwrite
           
-          # 4. Permissions aur Properties setup
-          chmod +x android/gradlew
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+          # 4. Critical Build Properties (Isse error nahi aayega)
+          cd android
+          echo "org.gradle.jvmargs=-Xmx1536M" > gradle.properties
+          echo "android.useAndroidX=true" >> gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
           
-          # 5. Final Build (Pure Power)
+          # 5. Local properties bypass
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> local.properties
+          cd ..
+          
+          # 6. Final Build Command
           flutter pub get
-          flutter build apk --release --no-tree-shake-icons
+          flutter build apk --release --no-tree-shake-icons --build-number=1
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: EasyLoan-App-Final
+          name: EasyLoan-App-Ready
           path: build/app/outputs/flutter-apk/app-release.apk
