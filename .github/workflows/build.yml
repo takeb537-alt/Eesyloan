@@ -22,23 +22,22 @@ jobs:
         with:
           flutter-version: '3.22.0'
 
-      - name: Build User App
+      - name: Final Build Execution
         run: |
-          # Is baar hum sirf android folder aur dependencies fix karenge
-          # lib/ folder ko touch nahi karenge
+          # 1. Pubspec name sync (Flutter requirements)
+          sed -i 's/name: .*/name: easy_loan/' pubspec.yaml
           
+          # 2. Re-generate only Android folder (lib folder is safe)
+          flutter create . --platforms android --overwrite --project-name easy_loan
+          
+          # 3. Get all your project dependencies
           flutter pub get
           
-          cd android
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" >> local.properties
-          cd ..
-          
-          # Final Build
+          # 4. Final APK Build
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: EasyLoan-Actual-App
+          name: EasyLoan-Final-App
           path: build/app/outputs/flutter-apk/app-release.apk
