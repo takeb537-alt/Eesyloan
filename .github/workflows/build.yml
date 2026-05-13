@@ -22,15 +22,17 @@ jobs:
         with:
           flutter-version: '3.22.0'
 
-      - name: Nuclear Fix and Build
+      - name: Absolute Final Fix
         run: |
-          # 1. Sab kuch jad se mitao jo build rokti hai
+          # 1. Purani sabhi problematic files saaf karo
           rm -rf android/
           rm -f pubspec.yaml
-          
-          # 2. Nayi clean pubspec file create karo
+          rm -f pubspec.lock
+
+          # 2. Ek dum fresh pubspec file banao jisme name 'easy_loan' ho
+          # Note: Flutter ko lowercase + underscore hi pasand hai
           cat <<EOF > pubspec.yaml
-          name: eesyloan
+          name: easy_loan
           description: A new Flutter project.
           version: 1.0.0+1
           environment:
@@ -45,27 +47,25 @@ jobs:
           flutter:
             uses-material-design: true
           EOF
-          
-          # 3. Fresh Android structure generate karo
-          flutter create . --platforms android --overwrite
-          
-          # 4. Critical Build Properties (Isse error nahi aayega)
+
+          # 3. Naya project structure generate karo (Isse naming issue khatam ho jayega)
+          flutter create . --platforms android --overwrite --project-name easy_loan
+
+          # 4. Android build settings force setup
           cd android
           echo "org.gradle.jvmargs=-Xmx1536M" > gradle.properties
           echo "android.useAndroidX=true" >> gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
-          
-          # 5. Local properties bypass
           echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> local.properties
           cd ..
-          
-          # 6. Final Build Command
+
+          # 5. Build start karo
           flutter pub get
-          flutter build apk --release --no-tree-shake-icons --build-number=1
+          flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: EasyLoan-App-Ready
+          name: EasyLoan-Final-Package
           path: build/app/outputs/flutter-apk/app-release.apk
