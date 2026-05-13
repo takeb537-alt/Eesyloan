@@ -1,35 +1,33 @@
-import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 import '../models/loan_model.dart';
-import '../models/user_model.dart';
 
-class LoanProvider with ChangeNotifier {
+class LoanProvider extends ChangeNotifier {
   List<LoanModel> _loans = [];
-  UserModel _user = UserModel(id: '1', name: 'Itel User', email: '', phone: '');
+  UserModel? _dummy; // ignore this, just for structure
 
   List<LoanModel> get loans => _loans;
-  UserModel get user => _user;
-  double get maxUnlockedAmount => 2500.0;
 
-  LoanProvider() {
-    _loadData();
+  // activeLoan getter — yahi missing tha!
+  LoanModel? get activeLoan {
+    try {
+      return _loans.firstWhere(
+        (l) => l.status == LoanStatus.active || l.status == LoanStatus.overdue,
+      );
+    } catch (e) {
+      return null;
+    }
   }
 
-  Future<void> _loadData() async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/loan_data_v1.json');
-      if (await file.exists()) {
-        final data = json.decode(await file.readAsString());
-        _loans = (data['loans'] as List).map((l) => LoanModel.fromMap(l)).toList();
-        if (data['user'] != null) _user = UserModel.fromMap(data['user']);
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint("Load Error: $e");
-    }
+  // onTimePayments getter — yahi missing tha!
+  int get onTimePayments {
+    return _loans
+        .where((l) => l.status == LoanStatus.completed)
+        .length;
+  }
+
+  void setLoans(List<LoanModel> loans) {
+    _loans = loans;
+    notifyListeners();
   }
 
   void addLoan(LoanModel loan) {
@@ -37,9 +35,25 @@ class LoanProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> logout() async {
-    _loans = [];
-    _user = UserModel(id: '', name: 'Guest', email: '', phone: '');
+  void updateLoan(LoanModel updatedLoan) {
+    final index = _loans.indexWhere((l) => l.id == updatedLoan.id);
+    if (index != -1) {
+      _loans[index] = updatedLoan;
+      notifyListeners();
+    }
+  }
+
+  void removeLoan(String loanId) {
+    _loans.removeWhere((l) => l.id == loanId);
     notifyListeners();
+  }
+
+  void loadFromData(Map<String, dynamic> data) {
+    if (data['loans'] != null) {
+      _loans = (data['loans'] as List)
+          .map((l) => LoanModel.fromMap(l))
+          .toList();
+      notifyListeners();
+    }
   }
 }
