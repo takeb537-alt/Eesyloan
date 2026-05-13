@@ -22,23 +22,23 @@ jobs:
         with:
           flutter-version: '3.22.0'
 
-      # Yeh step missing files ka jhanjhat khatam kar dega
       - name: Pre-build Configuration
         run: |
           mkdir -p android
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           cd android
-          # Missing gradlew generate karne ke liye
+          # Version 8.5 use karna hai (Compatibility ke liye)
           gradle wrapper --gradle-version 8.5
           chmod +x gradlew
 
       - name: Build APK
         run: |
+          # Agar gradlew generate ho gaya hai toh use use karke build karo
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: EasyLoan-Release
+          name: EasyLoan-Final-APK
           path: build/app/outputs/flutter-apk/app-release.apk
