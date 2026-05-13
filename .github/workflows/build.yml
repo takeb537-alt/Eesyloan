@@ -22,11 +22,15 @@ jobs:
         with:
           flutter-version: '3.22.0'
 
-      - name: Fix Missing Gradle Wrapper
+      # Yeh step missing files ka jhanjhat khatam kar dega
+      - name: Pre-build Configuration
         run: |
+          mkdir -p android
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           cd android
-          # This command creates gradlew if it's missing
-          gradle wrapper 
+          # Missing gradlew generate karne ke liye
+          gradle wrapper --gradle-version 8.5
           chmod +x gradlew
 
       - name: Build APK
@@ -36,5 +40,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: EasyLoan-Release-APK
+          name: EasyLoan-Release
           path: build/app/outputs/flutter-apk/app-release.apk
