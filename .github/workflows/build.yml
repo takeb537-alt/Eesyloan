@@ -22,25 +22,23 @@ jobs:
         with:
           flutter-version: '3.22.0'
 
-      - name: Final Repair and Build
+      - name: Atomic Repair and Build
         run: |
-          # 1. Project name thik karo (lowercase)
-          sed -i 's/name: .*/name: eesyloan/' pubspec.yaml
-          
-          # 2. Purana kachra saaf karo
-          rm -rf android/local.properties
+          # 1. Purani pubspec file ko delete karke naya valid lowercase name set karo
+          # Ye command direct file content badal degi bina kisi error ke
+          printf "name: eesyloan\ndescription: A new Flutter project.\nversion: 1.0.0+1\nenvironment:\n  sdk: '>=3.0.0 <4.0.0'\ndependencies:\n  flutter:\n    sdk: flutter\ndev_dependencies:\n  flutter_test:\n    sdk: flutter\nflutter:\n  uses-material-design: true" > pubspec.yaml
+
+          # 2. Project structure ko naye Flutter ke hisaab se force-rebuild karo
+          flutter create . --platforms android --overwrite
           
           # 3. Dependencies fetch karo
           flutter pub get
           
-          # 4. Android structure fresh karo (taaki Gradle issue na aaye)
-          flutter create . --platforms android
-          
-          # 5. Local properties setup
+          # 4. Local properties setup
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           
-          # 6. Final Build command
+          # 5. Final Hard Build
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK
