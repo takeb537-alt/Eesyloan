@@ -16,29 +16,27 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: 'gradle'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.0'
-
-      - name: Pre-build Configuration
-        run: |
-          mkdir -p android
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
-          cd android
-          # Version 8.5 use karna hai (Compatibility ke liye)
-          gradle wrapper --gradle-version 8.5
-          chmod +x gradlew
+          cache: true
 
       - name: Build APK
         run: |
-          # Agar gradlew generate ho gaya hai toh use use karke build karo
+          # Sabse pehle pub get
+          flutter pub get
+          # local.properties ki tension khatam
+          mkdir -p android
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+          # Seedha build, bina kisi external gradle wrapper ke
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: EasyLoan-Final-APK
+          name: EasyLoan-App
           path: build/app/outputs/flutter-apk/app-release.apk
