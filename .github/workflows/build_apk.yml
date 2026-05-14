@@ -1,0 +1,46 @@
+name: Build Professional APK
+
+on:
+  push:
+    branches: [ "main" ] # Agar aapka branch name 'master' hai, toh yahan master likh dein.
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+
+      - name: Fresh Android Setup
+        # 'yes |' se 'Welcome to Flutter' par build hang nahi hoga
+        run: |
+          rm -rf android
+          yes | flutter create . --platforms android
+
+      - name: Get Packages
+        run: flutter pub get
+
+      - name: Generate App Icons
+        # Isse aapka logo (1000025961_2.png) app par lag jayega
+        run: flutter pub run flutter_launcher_icons
+
+      - name: Build Debug APK
+        run: flutter build apk --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyLoan-App
+          path: build/app/outputs/flutter-apk/app-debug.apk
