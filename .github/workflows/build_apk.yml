@@ -1,4 +1,4 @@
-name: Final Build Fix
+name: Ultimate Final Fix
 
 on:
   push:
@@ -12,6 +12,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Clean Workspace
+        # Isse purane saare galat folders (android, gradle) delete ho jayenge
+        run: |
+          rm -rf android
+          rm -rf build
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -22,20 +28,19 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.19.0'
-          channel: 'stable'
 
-      - name: Recreate Android Folder
-        # Yeh command naya aur sahi android configuration bana degi
+      - name: Fresh Android Setup
+        # Yeh ek fresh, error-free android folder generate karega
         run: flutter create . --platforms android
 
-      - name: Get Dependencies
+      - name: Get Packages
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build Debug APK
         run: flutter build apk --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: EasyLoan-Final-APK
+          name: EasyLoan-App
           path: build/app/outputs/flutter-apk/app-debug.apk
