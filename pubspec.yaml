@@ -1,0 +1,27 @@
+name: easy_loan_app
+description: "A beautiful loan application UI built with Flutter."
+
+# Is line se aapke app ka version control hota hai
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0' # Yeh ensure karta hai ki aapka project modern Flutter SDK par chale
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Cupertino icons baseline components ke liye zaroori hai
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  # Linter rules jo aapke code ki quality sahi rakhte hain
+  flutter_lints: ^3.0.0
+
+# Assets aur Fonts ki configuration yahan hoti hai
+flutter:
+  # Isse Flutter material design elements design system use kar pata hai
+  uses-material-design: true
