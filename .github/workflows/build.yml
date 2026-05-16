@@ -1,0 +1,53 @@
+name: Flutter Build APK
+
+# Yeh workflow tab run hoga jab aap main branch par push karenge
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Repository se code checkout karne ke liye
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Java environment set up karne ke liye (Android build ke liye zaroori hai)
+      - name: Set up Java Development Kit (JDK)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu' # Aap 'temurin' ya 'adopt' bhi use kar sakte hain
+          java-version: '17'
+
+      # 3. Flutter framework environment set up karne ke liye
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x' # Yeh hamesha latest stable 3.x version uthaega
+          channel: 'stable'
+          cache: true # Taaki baar-baar dependencies download na karni pade (fast build)
+
+      # 4. Project ki saari dependencies (packages) get karne ke liye
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 5. Code mein koi syntax error ya issues check karne ke liye (Optional par acchi practice hai)
+      - name: Analyze project source
+        run: flutter analyze
+
+      # 6. Release mode mein APK build karne ke liye
+      - name: Build APK
+        run: flutter build apk --release
+
+      # 7. Build kiye gaye APK ko GitHub par upload karne ke liye (Aap isse workflow run ke baad download kar sakte hain)
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: easyloan-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
