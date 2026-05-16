@@ -7,7 +7,7 @@ class CategoriesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Pure white background as requested
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -18,11 +18,10 @@ class CategoriesScreen extends StatelessWidget {
               children: [
                 const Spacer(),
                 
-                // Logo Section: Logo and text structure matching image 1
+                // Logo Section
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Outer decorative circles around the avatar
                     Stack(
                       alignment: Alignment.center,
                       children: [
@@ -31,16 +30,18 @@ class CategoriesScreen extends StatelessWidget {
                           height: 80,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.blue.withOpacity(0.3), width: 2),
+                            border: Border.all(
+                              color: Colors.blue.withValues(alpha: 0.3), 
+                              width: 2,
+                            ),
                           ),
                         ),
-                        // Profile Avatar
                         Container(
                           width: 65,
                           height: 65,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.teal.withOpacity(0.1),
+                            color: Colors.teal.withValues(alpha: 0.1),
                             border: Border.all(color: const Color(0xFF2B5B84), width: 2),
                           ),
                           child: const Icon(Icons.person, size: 45, color: Color(0xFF2B5B84)),
@@ -49,7 +50,6 @@ class CategoriesScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 16),
                     
-                    // App Name text layout
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -73,20 +73,18 @@ class CategoriesScreen extends StatelessWidget {
                 
                 const Spacer(),
                 
-                // "Get Started" Button that routes to HomeScreen
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Home Screen par navigate karne ke liye
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const HomeScreen()),
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF63A393), // Button ka customized color
+                      backgroundColor: const Color(0xFF63A393),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
